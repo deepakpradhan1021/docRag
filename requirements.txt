@@ -1,0 +1,27 @@
+# =============================================================================
+# docRag — requirements.txt
+# =============================================================================
+# Pinned to major.minor to balance reproducibility with patch-level updates.
+# Run:  pip install -r requirements.txt
+#
+# Why each package:
+#   streamlit          — Web UI framework
+#   pymupdf            — PDF text extraction (fast, no Java dependency)
+#   langchain          — RAG pipeline orchestration
+#   langchain-google-genai — LangChain ↔ Google Gemini integration
+#   langchain-community — Community vector store integrations (FAISS wrapper)
+#   faiss-cpu          — Local vector similarity search (no GPU needed)
+#   sentence-transformers — Local embedding model (all-MiniLM-L6-v2)
+#   python-dotenv      — Load .env files for local API key management
+#   langchain-huggingface — LangChain ↔ HuggingFace embeddings integration
+# =============================================================================
+
+streamlit>=1.38,<2
+pymupdf>=1.24,<2
+langchain>=0.3,<1
+langchain-google-genai>=2,<5
+langchain-community>=0.3,<1
+langchain-huggingface>=0.1,<1
+faiss-cpu>=1.9,<2
+sentence-transformers>=3,<7
+python-dotenv>=1,<2

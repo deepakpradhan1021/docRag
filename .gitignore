@@ -1,0 +1,43 @@
+# =============================================================================
+# docRag .gitignore
+# =============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Secrets — NEVER commit these
+.env
+.streamlit/secrets.toml
+
+# Uploaded documents and generated indexes — user data stays local
+uploads/
+indexes/
+*.pdf
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage
