@@ -62,7 +62,7 @@
                                        v
                          +-----------------------------+
                          |  Google Gemini (Free-Tier)  |
-                         |   (gemini-2.0-flash, T=0.1) |
+                         |   (gemini-3.8-flash, T=0.1) |
                          +-------------+---------------+
                                        |
                                        v
@@ -105,7 +105,7 @@
 | **RAG Pipeline** | LangChain Core & Text Splitters | Free / Open-source | Standardized document abstractions |
 | **Embeddings** | Sentence-Transformers (`all-MiniLM-L6-v2`) | Free / Open-source | Tiny (~80MB), runs on CPU in milliseconds |
 | **Vector Index** | FAISS CPU (`faiss-cpu`) | Free / Open-source | In-memory, zero infrastructure needed |
-| **LLM Provider** | Google Gemini Free Tier (`gemini-2.0-flash`) | $0 / Free Tier | Free API via Google AI Studio |
+| **LLM Provider** | Google Gemini Free Tier (`gemini-3.8-flash`) | $0 / Free Tier | Free API via Google AI Studio |
 | **Deployment** | Streamlit Community Cloud | $0 / Free Tier | Instant GitHub-linked deployment |
 
 ---
