@@ -78,7 +78,8 @@ class TestRAGPipeline(unittest.TestCase):
         self.assertEqual(citations[0].source_index, 1)
         self.assertEqual(citations[0].page_number, 3)
 
-    def test_missing_api_key_returns_graceful_error(self):
+    @patch("src.rag_pipeline.get_gemini_api_key", return_value="")
+    def test_missing_api_key_returns_graceful_error(self, mock_get_key):
         response = answer_question(
             vector_store=MagicMock(),
             question="What is FAISS?",

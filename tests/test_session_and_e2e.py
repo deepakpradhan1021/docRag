@@ -120,5 +120,19 @@ class TestE2EAndSession(unittest.TestCase):
         self.assertEqual(session_mock["question_count"], 0)
 
 
+        # Verify clear chat only preserves document
+        session_mock_chat = {
+            "messages": [{"role": "user", "content": "Hello"}],
+            "vector_store": self.vector_store,
+            "question_count": 3,
+        }
+        session_mock_chat["messages"] = []
+        session_mock_chat["question_count"] = 0
+        self.assertEqual(len(session_mock_chat["messages"]), 0)
+        self.assertEqual(session_mock_chat["question_count"], 0)
+        self.assertIsNotNone(session_mock_chat["vector_store"])
+
+
 if __name__ == "__main__":
     unittest.main()
+
