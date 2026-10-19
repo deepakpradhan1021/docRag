@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>docRag — Document Intelligence</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -41,7 +40,12 @@
       </div>
 
       <!-- Attached Documents List -->
-      <div class="section-label" style="margin-top: 14px;">Document Library</div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 18px; margin-bottom: 6px; padding: 0 4px;">
+        <span class="section-label" style="margin: 0;">Document Library</span>
+        <button class="action-pill-btn" id="sidebarAttachBtn" title="Attach PDF to this chat" style="padding: 2px 10px; font-size: 11px; height: 24px; border-color: rgba(168, 85, 247, 0.4); cursor: pointer;">
+          + Add PDF
+        </button>
+      </div>
       <div id="sidebarDocList">
         <!-- Rendered dynamically by JS -->
         <div style="font-size: 12px; color: var(--text-dim); padding: 8px 10px;">No PDFs in this chat.</div>
@@ -116,8 +120,8 @@
         </div>
 
         <div class="feature-cards-grid">
-          <div class="feature-card">
-            <h5>📚 Multi-Document RAG</h5>
+          <div class="feature-card" id="cardAttachPdf" style="cursor: pointer; border-color: rgba(168, 85, 247, 0.3);" title="Click to attach PDF documents">
+            <h5>📚 Multi-Document RAG <span style="font-size: 11px; color: var(--accent-purple); float: right;">+ Click to Attach</span></h5>
             <p>Attach multiple PDFs to a single chat session to cross-reference and compare findings.</p>
           </div>
           <div class="feature-card">
@@ -183,14 +187,19 @@
       <button class="btn-icon" id="closeUploadModalBtn">&times;</button>
     </div>
     
-    <div class="dropzone" id="dropzone">
-      <input type="file" id="fileInput" accept="application/pdf" multiple style="display: none;">
+    <!-- Hidden File Input separated from dropzone to avoid event loop -->
+    <input type="file" id="fileInput" accept="application/pdf" multiple style="display: none;">
+
+    <div class="dropzone" id="dropzone" style="cursor: pointer;">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
       <h4 style="margin-bottom: 6px;">Drop your PDF(s) here, or click to browse</h4>
-      <p style="font-size: 12px; color: var(--text-muted);">Text-based PDFs up to 10 MB and 50 pages each.</p>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Text-based PDFs up to 10 MB and 50 pages each.</p>
+      <button type="button" class="action-pill-btn" id="browseFilesBtn" style="background: rgba(168, 85, 247, 0.2); border: 1px solid var(--accent-purple); color: white; padding: 6px 18px; font-size: 12.5px; cursor: pointer; pointer-events: none;">
+        📂 Browse Files
+      </button>
     </div>
 
-    <div id="uploadStatusText" style="margin-top: 14px; font-size: 13px; color: var(--accent-purple); text-align: center;"></div>
+    <div id="uploadStatusText" style="margin-top: 14px; font-size: 13px; color: var(--accent-purple); text-align: center; font-weight: 500;"></div>
   </div>
 </div>
 
@@ -254,6 +263,6 @@
   </div>
 </div>
 
-<script src="/static/app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

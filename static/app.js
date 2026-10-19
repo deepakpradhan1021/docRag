@@ -1,19 +1,27 @@
 /**
  * docRag Client Application
- * Pure Vanilla JavaScript — clean, readable, and easy to explain in any interview.
+ * Pure Vanilla JavaScript — clean, responsive, robust, and easy to explain in any interview.
  */
+
+// --- Dynamic API Base Resolution ---
+// If running from file://, default to local server; otherwise use relative origin
+const isLocalFile = window.location.protocol === "file:";
+let customApiBase = localStorage.getItem("docRag_apiBase") || "";
+const API_BASE = customApiBase || (isLocalFile ? "http://localhost:8000" : "");
 
 // --- State ---
 let currentSessionId = null;
 let currentChatData = null;
 let userApiKey = localStorage.getItem("docRag_apiKey") || "";
-let customApiBase = localStorage.getItem("docRag_apiBase") || "";
-const API_BASE = customApiBase || "";
+let isServerOnline = false;
 
 // --- DOM Elements ---
 const chatListContainer = document.getElementById("chatListContainer");
 const sidebarDocList = document.getElementById("sidebarDocList");
 const newChatBtn = document.getElementById("newChatBtn");
+const toggleSidebarBtn = document.getElementById("toggleSidebarBtn");
+const sidebar = document.getElementById("sidebar");
+
 const chatScrollArea = document.getElementById("chatScrollArea");
 const heroCenter = document.getElementById("heroCenter");
 const messagesList = document.getElementById("messagesList");
@@ -47,105 +55,240 @@ const exportBtn = document.getElementById("exportBtn");
 // --- Initialization ---
 async function initApp() {
   setupEventListeners();
-  if (userApiKey) apiKeyInput.value = userApiKey;
+  if (userApiKey && apiKeyInput) apiKeyInput.value = userApiKey;
+  await checkServerHealth();
   await loadChatList();
 }
 
-// --- Event Listeners ---
-function setupEventListeners() {
-  // New chat
-  newChatBtn.addEventListener("click", createNewChat);
-
-  // Send message on click or Enter (without shift)
-  sendBtn.addEventListener("click", handleSendMessage);
-  chatTextarea.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+// --- Server Connection Health Check ---
+async function checkServerHealth() {
+  try {
+    const res = await fetch(`${API_BASE}/api/health`, { method: "GET" });
+    if (res.ok) {
+      isServerOnline = true;
+      removeOfflineBanner();
+    } else {
+      isServerOnline = false;
+      showOfflineBanner();
     }
-  });
+  } catch (err) {
+    isServerOnline = false;
+    showOfflineBanner();
+  }
+}
 
-  // Enable/disable send button based on input
-  chatTextarea.addEventListener("input", () => {
-    chatTextarea.style.height = "auto";
-    chatTextarea.style.height = `${Math.min(chatTextarea.scrollHeight, 120)}px`;
-    sendBtn.disabled = !chatTextarea.value.trim();
-  });
+function showOfflineBanner() {
+  let banner = document.getElementById("offlineBanner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "offlineBanner";
+    banner.style.cssText = `
+      background: linear-gradient(90deg, #ef4444 0%, #b91c1c 100%);
+      color: white;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+      z-index: 1000;
+    `;
+    banner.innerHTML = `
+      <span>⚠️ Python backend server is offline. Please run <code>python server.py</code> in your project directory.</span>
+      <button id="retryConnBtn" style="background: white; color: #b91c1c; border: none; padding: 4px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;">Retry Connection</button>
+    `;
+    document.body.prepend(banner);
+
+    document.getElementById("retryConnBtn").addEventListener("click", async () => {
+      await checkServerHealth();
+      if (isServerOnline) {
+        showToast("Connected to docRag backend!", "success");
+        await loadChatList();
+      } else {
+        showToast("Still offline. Make sure 'python server.py' is running.", "error");
+      }
+    });
+  }
+}
+
+function removeOfflineBanner() {
+  const banner = document.getElementById("offlineBanner");
+  if (banner) banner.remove();
+}
+
+// --- Notification Toasts ---
+function showToast(message, type = "info") {
+  let toast = document.createElement("div");
+  toast.style.cssText = `
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    background: ${type === "error" ? "#dc2626" : type === "success" ? "#16a34a" : "#1e1b4b"};
+    border: 1px solid ${type === "error" ? "#ef4444" : type === "success" ? "#22c55e" : "#818cf8"};
+    color: white;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    font-weight: 500;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    z-index: 9999;
+    animation: fadeIn 0.25s ease;
+  `;
+  toast.innerText = message;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transition = "opacity 0.3s";
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+
+// --- Event Listeners Setup ---
+function setupEventListeners() {
+  // Toggle Sidebar
+  if (toggleSidebarBtn && sidebar) {
+    toggleSidebarBtn.addEventListener("click", () => {
+      sidebar.classList.toggle("collapsed");
+    });
+  }
+
+  // New chat
+  if (newChatBtn) {
+    newChatBtn.addEventListener("click", createNewChat);
+  }
+
+  // Send message
+  if (sendBtn) {
+    sendBtn.addEventListener("click", handleSendMessage);
+  }
+
+  if (chatTextarea) {
+    chatTextarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    });
+
+    chatTextarea.addEventListener("input", () => {
+      chatTextarea.style.height = "auto";
+      chatTextarea.style.height = `${Math.min(chatTextarea.scrollHeight, 120)}px`;
+      if (sendBtn) sendBtn.disabled = !chatTextarea.value.trim();
+    });
+  }
 
   // Chip buttons click in Hero
   document.querySelectorAll(".chip-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const prompt = btn.getAttribute("data-prompt");
-      chatTextarea.value = prompt;
-      sendBtn.disabled = false;
-      handleSendMessage();
+      if (chatTextarea) {
+        chatTextarea.value = prompt;
+        if (sendBtn) sendBtn.disabled = false;
+        handleSendMessage();
+      }
     });
   });
 
-  // Modals open/close
-  attachBtn.addEventListener("click", () => openModal(uploadModal));
-  closeUploadModalBtn.addEventListener("click", () => closeModal(uploadModal));
+  // Attach PDF Buttons (opens modal)
+  if (attachBtn) {
+    attachBtn.addEventListener("click", () => openModal(uploadModal));
+  }
+  const sidebarAttachBtn = document.getElementById("sidebarAttachBtn");
+  if (sidebarAttachBtn) {
+    sidebarAttachBtn.addEventListener("click", () => openModal(uploadModal));
+  }
+  const cardAttachPdf = document.getElementById("cardAttachPdf");
+  if (cardAttachPdf) {
+    cardAttachPdf.addEventListener("click", () => openModal(uploadModal));
+  }
+  if (closeUploadModalBtn) {
+    closeUploadModalBtn.addEventListener("click", () => closeModal(uploadModal));
+  }
 
-  openInspectorBtn.addEventListener("click", openInspector);
-  quickInspectBtn.addEventListener("click", openInspector);
-  closeInspectorModalBtn.addEventListener("click", () => closeModal(inspectorModal));
+  // Document Page Inspector Buttons
+  if (openInspectorBtn) openInspectorBtn.addEventListener("click", openInspector);
+  if (quickInspectBtn) quickInspectBtn.addEventListener("click", openInspector);
+  if (closeInspectorModalBtn) closeInspectorModalBtn.addEventListener("click", () => closeModal(inspectorModal));
 
-  settingsBtn.addEventListener("click", () => openModal(settingsModal));
-  closeSettingsModalBtn.addEventListener("click", () => closeModal(settingsModal));
+  // Settings Modal Buttons
+  if (settingsBtn) settingsBtn.addEventListener("click", () => openModal(settingsModal));
+  if (closeSettingsModalBtn) closeSettingsModalBtn.addEventListener("click", () => closeModal(settingsModal));
 
-  saveSettingsBtn.addEventListener("click", () => {
-    userApiKey = apiKeyInput.value.trim();
-    if (userApiKey) {
-      localStorage.setItem("docRag_apiKey", userApiKey);
-    } else {
-      localStorage.removeItem("docRag_apiKey");
+  if (saveSettingsBtn) {
+    saveSettingsBtn.addEventListener("click", () => {
+      userApiKey = apiKeyInput.value.trim();
+      if (userApiKey) {
+        localStorage.setItem("docRag_apiKey", userApiKey);
+      } else {
+        localStorage.removeItem("docRag_apiKey");
+      }
+      closeModal(settingsModal);
+      showToast("API Key configuration saved!", "success");
+    });
+  }
+
+  // Modal Backdrop Click & ESC to close
+  document.querySelectorAll(".modal-overlay").forEach((modal) => {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal(modal);
+    });
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      document.querySelectorAll(".modal-overlay.active").forEach(closeModal);
     }
-    closeModal(settingsModal);
-    alert("Settings saved!");
   });
 
-  // File Upload Drag & Drop
-  dropzone.addEventListener("click", () => fileInput.click());
-  dropzone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    dropzone.style.borderColor = "var(--accent-purple)";
-  });
-  dropzone.addEventListener("dragleave", () => {
-    dropzone.style.borderColor = "rgba(168, 85, 247, 0.4)";
-  });
-  dropzone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dropzone.style.borderColor = "rgba(168, 85, 247, 0.4)";
-    if (e.dataTransfer.files.length) {
-      handleFilesUpload(e.dataTransfer.files);
-    }
-  });
-  fileInput.addEventListener("change", () => {
-    if (fileInput.files.length) {
-      handleFilesUpload(fileInput.files);
-    }
-  });
+  // File Upload Drag & Drop & Browse
+  if (dropzone && fileInput) {
+    dropzone.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("click", (e) => e.stopPropagation());
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = "var(--accent-purple)";
+    });
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.style.borderColor = "rgba(168, 85, 247, 0.4)";
+    });
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = "rgba(168, 85, 247, 0.4)";
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        handleFilesUpload(e.dataTransfer.files);
+      }
+    });
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files && fileInput.files.length) {
+        handleFilesUpload(fileInput.files);
+      }
+    });
+  }
 
   // Inspector dropdown changes
-  inspectDocSelect.addEventListener("change", updateInspectorPages);
-  inspectPageSelect.addEventListener("change", updateInspectorText);
+  if (inspectDocSelect) inspectDocSelect.addEventListener("change", updateInspectorPages);
+  if (inspectPageSelect) inspectPageSelect.addEventListener("change", updateInspectorText);
 
-  // Export
-  exportBtn.addEventListener("click", handleExport);
+  // Export Button
+  if (exportBtn) {
+    exportBtn.addEventListener("click", handleExport);
+  }
 }
 
 function openModal(modal) {
-  modal.classList.add("active");
+  if (modal) modal.classList.add("active");
 }
 function closeModal(modal) {
-  modal.classList.remove("active");
+  if (modal) modal.classList.remove("active");
 }
 
 // --- API Calls ---
 
 async function loadChatList() {
   try {
-    const res = await fetch(`${API_BASE}/api/chats");
+    const res = await fetch(`${API_BASE}/api/chats`);
+    if (!res.ok) throw new Error("Server returned non-200");
     const sessions = await res.json();
     renderChatList(sessions);
 
@@ -155,12 +298,17 @@ async function loadChatList() {
     } else {
       await createNewChat();
     }
+    isServerOnline = true;
+    removeOfflineBanner();
   } catch (err) {
-    console.error("Failed to load chat list:", err);
+    console.warn("Could not load chat list. Backend may be offline:", err);
+    isServerOnline = false;
+    showOfflineBanner();
   }
 }
 
 function renderChatList(sessions) {
+  if (!chatListContainer) return;
   chatListContainer.innerHTML = "";
   sessions.forEach((s) => {
     const item = document.createElement("div");
@@ -179,16 +327,20 @@ function renderChatList(sessions) {
 
 async function createNewChat() {
   try {
-    const res = await fetch(`${API_BASE}/api/chats", {
+    const res = await fetch(`${API_BASE}/api/chats`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: "New Chat" }),
     });
+    if (!res.ok) throw new Error("Could not create chat");
     const session = await res.json();
+    currentSessionId = session.session_id;
+    currentChatData = session;
     await loadChatList();
-    await switchChat(session.session_id);
+    renderCurrentChat();
+    showToast("Started new chat session", "info");
   } catch (err) {
-    console.error("Failed to create chat:", err);
+    showToast("Backend offline. Start server: python server.py", "error");
   }
 }
 
@@ -196,9 +348,15 @@ async function switchChat(sessionId) {
   currentSessionId = sessionId;
   try {
     const res = await fetch(`${API_BASE}/api/chats/${sessionId}`);
+    if (!res.ok) throw new Error("Failed to load session");
     currentChatData = await res.json();
     renderCurrentChat();
-    await loadChatList(); // Updates active indicator
+    // Update active highlight in sidebar
+    document.querySelectorAll(".chat-item").forEach((el) => el.classList.remove("active"));
+    const activeItem = [...chatListContainer.children].find((el) =>
+      el.innerHTML.includes(sessionId)
+    );
+    if (activeItem) activeItem.classList.add("active");
   } catch (err) {
     console.error("Failed to switch chat:", err);
   }
@@ -208,56 +366,66 @@ async function deleteChat(sessionId) {
   if (!confirm("Are you sure you want to delete this chat session?")) return;
   try {
     await fetch(`${API_BASE}/api/chats/${sessionId}`, { method: "DELETE" });
+    showToast("Chat deleted", "info");
     await loadChatList();
   } catch (err) {
-    console.error("Failed to delete chat:", err);
+    showToast("Failed to delete chat", "error");
   }
 }
 
 function renderCurrentChat() {
   if (!currentChatData) return;
 
-  // Render Documents in sidebar
-  sidebarDocList.innerHTML = "";
-  activeDocsBar.innerHTML = "";
+  // Render Documents in sidebar and active docs pill bar
+  if (sidebarDocList) sidebarDocList.innerHTML = "";
+  if (activeDocsBar) activeDocsBar.innerHTML = "";
 
-  if (currentChatData.documents.length === 0) {
-    sidebarDocList.innerHTML = `<div style="font-size: 12px; color: var(--text-dim); padding: 8px 10px;">No PDFs in this chat.</div>`;
-    activeDocsBar.style.display = "none";
+  if (!currentChatData.documents || currentChatData.documents.length === 0) {
+    if (sidebarDocList) {
+      sidebarDocList.innerHTML = `<div style="font-size: 12px; color: var(--text-dim); padding: 8px 10px;">No PDFs in this chat.</div>`;
+    }
+    if (activeDocsBar) activeDocsBar.style.display = "none";
   } else {
-    activeDocsBar.style.display = "flex";
+    if (activeDocsBar) activeDocsBar.style.display = "flex";
     currentChatData.documents.forEach((doc) => {
       // Sidebar pill
-      const docDiv = document.createElement("div");
-      docDiv.className = "doc-pill";
-      docDiv.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-        <span title="${doc.file_name}">${escapeHtml(doc.file_name)} (${doc.total_pages}p)</span>
-      `;
-      sidebarDocList.appendChild(docDiv);
+      if (sidebarDocList) {
+        const docDiv = document.createElement("div");
+        docDiv.className = "doc-pill";
+        docDiv.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          <span title="${doc.file_name}">${escapeHtml(doc.file_name)} (${doc.total_pages}p)</span>
+        `;
+        sidebarDocList.appendChild(docDiv);
+      }
 
       // Input bar tag
-      const tagDiv = document.createElement("div");
-      tagDiv.className = "active-doc-tag";
-      tagDiv.innerHTML = `📄 ${escapeHtml(doc.file_name)} <span style="opacity: 0.6;">(${doc.total_pages}p)</span>`;
-      activeDocsBar.appendChild(tagDiv);
+      if (activeDocsBar) {
+        const tagDiv = document.createElement("div");
+        tagDiv.className = "active-doc-tag";
+        tagDiv.innerHTML = `📄 ${escapeHtml(doc.file_name)} <span style="opacity: 0.6;">(${doc.total_pages}p)</span>`;
+        activeDocsBar.appendChild(tagDiv);
+      }
     });
   }
 
   // Render Messages or Hero
-  if (currentChatData.messages.length === 0) {
-    heroCenter.style.display = "block";
-    messagesList.innerHTML = "";
+  if (!currentChatData.messages || currentChatData.messages.length === 0) {
+    if (heroCenter) heroCenter.style.display = "block";
+    if (messagesList) messagesList.innerHTML = "";
   } else {
-    heroCenter.style.display = "none";
-    messagesList.innerHTML = "";
-    currentChatData.messages.forEach((msg) => renderMessageRow(msg));
+    if (heroCenter) heroCenter.style.display = "none";
+    if (messagesList) {
+      messagesList.innerHTML = "";
+      currentChatData.messages.forEach((msg) => renderMessageRow(msg));
+    }
   }
 
   scrollChatToBottom();
 }
 
 function renderMessageRow(msg) {
+  if (!messagesList) return;
   const row = document.createElement("div");
   row.className = `message-row ${msg.role}`;
 
@@ -311,11 +479,16 @@ function renderMessageRow(msg) {
 
 // --- Sending Messages ---
 async function handleSendMessage() {
+  if (!chatTextarea) return;
   const text = chatTextarea.value.trim();
-  if (!text || !currentSessionId) return;
+  if (!text) return;
 
-  if (currentChatData.documents.length === 0) {
-    alert("Please attach at least one PDF document before asking questions.");
+  if (!currentSessionId) {
+    await createNewChat();
+  }
+
+  if (!currentChatData || !currentChatData.documents || currentChatData.documents.length === 0) {
+    showToast("Please attach at least one PDF document first!", "error");
     openModal(uploadModal);
     return;
   }
@@ -323,10 +496,10 @@ async function handleSendMessage() {
   // Clear input
   chatTextarea.value = "";
   chatTextarea.style.height = "auto";
-  sendBtn.disabled = true;
+  if (sendBtn) sendBtn.disabled = true;
 
   // Optimistically show user message
-  heroCenter.style.display = "none";
+  if (heroCenter) heroCenter.style.display = "none";
   renderMessageRow({ role: "user", content: text });
   scrollChatToBottom();
 
@@ -340,7 +513,7 @@ async function handleSendMessage() {
       <span style="font-size: 13px; color: var(--accent-purple);">Searching FAISS index and generating grounded answer...</span>
     </div>
   `;
-  messagesList.appendChild(loadingRow);
+  if (messagesList) messagesList.appendChild(loadingRow);
   scrollChatToBottom();
 
   try {
@@ -355,7 +528,6 @@ async function handleSendMessage() {
 
     if (res.ok && data.message) {
       renderMessageRow(data.message);
-      // Refresh chat list to update title
       await loadChatList();
     } else {
       renderMessageRow({
@@ -367,7 +539,7 @@ async function handleSendMessage() {
     loadingRow.remove();
     renderMessageRow({
       role: "assistant",
-      content: `⚠️ Network error: Could not reach docRag server.`,
+      content: `⚠️ Network error: Cannot connect to docRag backend. Please ensure 'python server.py' is running.`,
     });
   }
 
@@ -376,14 +548,20 @@ async function handleSendMessage() {
 
 // --- Uploading Files ---
 async function handleFilesUpload(files) {
-  if (!files || !files.length || !currentSessionId) return;
+  if (!files || !files.length) return;
+
+  if (!currentSessionId) {
+    await createNewChat();
+  }
 
   const formData = new FormData();
   for (let i = 0; i < files.length; i++) {
     formData.append("files", files[i]);
   }
 
-  uploadStatusText.innerText = "Indexing PDF(s) with local embeddings... Please wait...";
+  if (uploadStatusText) {
+    uploadStatusText.innerText = "Indexing PDF(s) with local embeddings... Please wait...";
+  }
 
   try {
     const res = await fetch(`${API_BASE}/api/chats/${currentSessionId}/upload`, {
@@ -393,40 +571,54 @@ async function handleFilesUpload(files) {
 
     const result = await res.json();
     if (res.ok) {
-      uploadStatusText.innerText = `Successfully indexed ${result.uploaded.length} document(s)!`;
+      if (uploadStatusText) {
+        uploadStatusText.innerText = `Successfully indexed ${result.uploaded.length} document(s)!`;
+      }
+      showToast(`Attached ${result.uploaded.length} document(s) successfully!`, "success");
       setTimeout(() => {
         closeModal(uploadModal);
-        uploadStatusText.innerText = "";
+        if (uploadStatusText) uploadStatusText.innerText = "";
+        if (fileInput) fileInput.value = "";
       }, 1000);
       await switchChat(currentSessionId);
     } else {
-      uploadStatusText.innerText = `Error: ${result.detail || "Upload failed."}`;
+      if (uploadStatusText) {
+        uploadStatusText.innerText = `Error: ${result.detail || "Upload failed."}`;
+      }
+      showToast(result.detail || "Upload failed", "error");
     }
   } catch (err) {
-    uploadStatusText.innerText = "Failed to upload: Network error.";
+    if (uploadStatusText) {
+      uploadStatusText.innerText = "Failed to upload: Cannot reach server.";
+    }
+    showToast("Server offline. Make sure 'python server.py' is running.", "error");
   }
 }
 
 // --- Document Page Inspector ---
 function openInspector() {
   if (!currentChatData || !currentChatData.documents || currentChatData.documents.length === 0) {
-    alert("No PDF documents attached in this chat yet. Please attach a PDF first.");
+    showToast("No PDFs attached in this chat yet. Attach a PDF first!", "error");
+    openModal(uploadModal);
     return;
   }
 
-  inspectDocSelect.innerHTML = "";
-  currentChatData.documents.forEach((d) => {
-    const opt = document.createElement("option");
-    opt.value = d.file_name;
-    opt.innerText = `${d.file_name} (${d.total_pages} pages)`;
-    inspectDocSelect.appendChild(opt);
-  });
+  if (inspectDocSelect) {
+    inspectDocSelect.innerHTML = "";
+    currentChatData.documents.forEach((d) => {
+      const opt = document.createElement("option");
+      opt.value = d.file_name;
+      opt.innerText = `${d.file_name} (${d.total_pages} pages)`;
+      inspectDocSelect.appendChild(opt);
+    });
+  }
 
   updateInspectorPages();
   openModal(inspectorModal);
 }
 
 function updateInspectorPages() {
+  if (!inspectDocSelect || !inspectPageSelect) return;
   const selectedDocName = inspectDocSelect.value;
   const doc = currentChatData.documents.find((d) => d.file_name === selectedDocName);
   if (!doc) return;
@@ -439,31 +631,58 @@ function updateInspectorPages() {
       opt.innerText = `Page ${p.page_number}`;
       inspectPageSelect.appendChild(opt);
     });
+  } else {
+    // If pages array wasn't passed in full summary, generate page numbers
+    for (let i = 1; i <= doc.total_pages; i++) {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.innerText = `Page ${i}`;
+      inspectPageSelect.appendChild(opt);
+    }
   }
   updateInspectorText();
 }
 
 function updateInspectorText() {
+  if (!inspectDocSelect || !inspectPageSelect || !inspectTextarea) return;
   const selectedDocName = inspectDocSelect.value;
   const pageNum = parseInt(inspectPageSelect.value);
   const doc = currentChatData.documents.find((d) => d.file_name === selectedDocName);
-  if (!doc || !doc.pages) return;
+  if (!doc || !doc.pages) {
+    inspectTextarea.value = "(Text extracted and indexed in FAISS vector store)";
+    return;
+  }
 
   const page = doc.pages.find((p) => p.page_number === pageNum);
   inspectTextarea.value = page ? page.text : "(No content on this page)";
 }
 
-// --- Export ---
+// --- Export Conversation ---
 function handleExport() {
-  if (!currentSessionId) return;
-  window.open(`/api/chats/${currentSessionId}/export`, "_blank");
+  if (!currentSessionId) {
+    showToast("No active chat to export. Click '+ New Chat' first.", "error");
+    return;
+  }
+
+  const downloadUrl = `${API_BASE}/api/chats/${currentSessionId}/export`;
+  const a = document.createElement("a");
+  a.href = downloadUrl;
+  const rawTitle = (currentChatData && currentChatData.title) ? currentChatData.title : "transcript";
+  const safeTitle = rawTitle.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 30);
+  a.download = `docRag-${safeTitle}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast("Downloading Q&A transcript report...", "success");
 }
 
 // --- Helpers ---
 function scrollChatToBottom() {
-  setTimeout(() => {
-    chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
-  }, 50);
+  if (chatScrollArea) {
+    setTimeout(() => {
+      chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
+    }, 50);
+  }
 }
 
 function escapeHtml(text) {
@@ -479,16 +698,12 @@ function escapeHtml(text) {
 function formatMarkdownBasic(text) {
   if (!text) return "";
   let formatted = escapeHtml(text);
-  // Bold
   formatted = formatted.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-  // Italic
   formatted = formatted.replace(/\*(.*?)\*/g, "<em>$1</em>");
-  // Source tags
   formatted = formatted.replace(
     /\[Source\s*(\d+)\]/g,
     '<span class="badge-pill" style="font-size: 11px;">Source $1</span>'
   );
-  // Line breaks
   formatted = formatted.replace(/\n/g, "<br>");
   return formatted;
 }
