@@ -50,6 +50,17 @@ def get_gemini_api_key(override_key: str | None = None) -> str:
 # free-tier model for high accuracy, grounded QA, and fast inference.
 LLM_MODEL_NAME: str = os.getenv("LLM_MODEL_NAME", "gemini-3.8-flash")
 
+# Fallback cascade of models for zero-downtime quota resilience.
+# If the primary model hits a daily quota (RPD) or rate limit,
+# docRag automatically cascades to the next available free model.
+CANDIDATE_MODELS: list[str] = [
+    LLM_MODEL_NAME,
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+]
+
 # Temperature controls randomness.  0.1 keeps answers factual and
 # reproducible — good for citation-grounded QA.  Raise toward 0.7 if you
 # want more creative phrasing (at the cost of accuracy).
