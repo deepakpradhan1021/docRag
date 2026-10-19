@@ -1,0 +1,8 @@
+# Netlify Configuration for docRag Frontend
+[build]
+  publish = "static"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
