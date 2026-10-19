@@ -271,18 +271,21 @@ def export_chat(session_id: str, format: str = "markdown"):
         "\n---\n",
     ]
 
-    for m in session.messages:
-        role_label = "User" if m.role == "user" else "docRag Assistant"
-        lines.append(f"### {role_label} ({m.timestamp})")
-        lines.append(f"{m.content}\n")
-        if m.citations:
-            lines.append("**Source Citations:**")
-            for c in m.citations:
-                lines.append(
-                    f"- **[Source {c['source_index']}]** Page {c['page_number']} (`{c['document_name']}`): *\"{c['excerpt']}\"*"
-                )
-            lines.append("")
-        lines.append("---\n")
+    if not session.messages:
+        lines.append("*No messages recorded in this chat session yet.*")
+    else:
+        for m in session.messages:
+            role_label = "User" if m.role == "user" else "docRag Assistant"
+            lines.append(f"### {role_label} ({m.timestamp})")
+            lines.append(f"{m.content}\n")
+            if m.citations:
+                lines.append("**Source Citations:**")
+                for c in m.citations:
+                    lines.append(
+                        f"- **[Source {c['source_index']}]** Page {c['page_number']} (`{c['document_name']}`): *\"{c['excerpt']}\"*"
+                    )
+                lines.append("")
+            lines.append("---\n")
 
     md_content = "\n".join(lines)
     return PlainTextResponse(
@@ -299,16 +302,12 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 if not os.path.exists(static_dir):
     os.makedirs(static_dir, exist_ok=True)
 
-# Mount static folder
+# Mount /static for explicit /static path references
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-
-@app.get("/")
-def serve_index():
-    index_file = os.path.join(static_dir, "index.html")
-    if os.path.exists(index_file):
-        return FileResponse(index_file)
-    return PlainTextResponse("docRag API is running. UI files loading...")
+# Mount root static files (index.html, style.css, app.js, etc.)
+# Placed AFTER all /api routes so API endpoints take absolute priority
+app.mount("/", StaticFiles(directory=static_dir, html=True), name="static_root")
 
 
 if __name__ == "__main__":
