@@ -14,6 +14,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from src.config import (
+    CANDIDATE_MODELS,
     GOOGLE_API_KEY,
     LLM_MAX_OUTPUT_TOKENS,
     LLM_MODEL_NAME,
@@ -167,14 +168,26 @@ def reformulate_query_with_history(
     if not chat_history:
         return question.strip()
 
-    # Build brief summary of recent turns (last 2-3 turns max)
+    # Quota optimization: only make an extra LLM call if the question actually
+    # appears to be a follow-up referring to previous turns.
+    # Otherwise, save the API call for answer generation!
+    q_lower = question.lower().strip()
+    words = set(re.findall(r"\b\w+\b", q_lower))
+    pronouns = {
+        "it", "its", "they", "them", "their", "this", "that", "these", "those",
+        "he", "him", "his", "she", "her", "why", "how", "what about", "who", "more", "earlier", "previous"
+    }
+    # If question is reasonably long (>7 words) and lacks pronouns, it's already standalone
+    if len(q_lower.split()) > 7 and not (words & pronouns):
+        return question.strip()
+
+    # Build brief summary of recent turns (last 2 turns max)
     history_snippets: list[str] = []
-    for turn in chat_history[-4:]:
+    for turn in chat_history[-2:]:
         role = "User" if turn.get("role") == "user" else "Assistant"
         content = turn.get("content", "").strip()
-        # Keep turns concise for reformulation
         if content:
-            history_snippets.append(f"{role}: {content[:200]}")
+            history_snippets.append(f"{role}: {content[:150]}")
 
     history_text = "\n".join(history_snippets)
 
@@ -191,7 +204,6 @@ def reformulate_query_with_history(
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
         standalone = response.content.strip() if hasattr(response, "content") else question
-        # If model returned empty or echoed prompt, fall back to original
         if standalone and len(standalone) > 3:
             return standalone
     except Exception:
@@ -228,24 +240,20 @@ def answer_question(
             ),
         )
 
-    # Initialize Gemini LLM
-    try:
-        llm = ChatGoogleGenerativeAI(
-            model=LLM_MODEL_NAME,
-            google_api_key=resolved_key,
-            temperature=LLM_TEMPERATURE,
-            max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
-        )
-    except Exception as exc:
-        return RAGResponse(
-            answer="",
-            error=f"Failed to initialize Gemini LLM: {str(exc)}",
-        )
-
-    # Step 1: Query reformulation for follow-ups
+    # Step 1: Query reformulation for follow-ups (if needed)
     effective_query = question.strip()
     if chat_history and len(chat_history) > 0:
-        effective_query = reformulate_query_with_history(llm, question, chat_history)
+        try:
+            reform_llm = ChatGoogleGenerativeAI(
+                model=LLM_MODEL_NAME,
+                google_api_key=resolved_key,
+                temperature=0.0,
+                max_output_tokens=64,
+                max_retries=1,
+            )
+            effective_query = reformulate_query_with_history(reform_llm, question, chat_history)
+        except Exception:
+            effective_query = question.strip()
 
     # Step 2: Retrieve document evidence from FAISS
     try:
@@ -273,30 +281,79 @@ def answer_question(
         "Grounded Answer (citing [Source X]):"
     )
 
-    # Step 4: Call Gemini LLM
-    try:
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ]
-        result = llm.invoke(messages)
-        answer_text = result.content.strip() if hasattr(result, "content") else str(result).strip()
-    except Exception as exc:
-        error_msg = str(exc)
-        if "RESOURCE_EXHAUSTED" in error_msg or "429" in error_msg:
-            return RAGResponse(
-                answer="",
-                error=(
-                    "Rate limit or quota exceeded for Gemini free tier (429). "
-                    "Please wait 30-60 seconds before submitting another question."
-                ),
+    # Step 4: Call Gemini LLM with Automatic Model Fallback Cascade
+    # If the primary model hits a daily limit (RPD 429), immediately cascade to alternate models
+    models_to_try = [LLM_MODEL_NAME]
+    for m in CANDIDATE_MODELS:
+        if m not in models_to_try:
+            models_to_try.append(m)
+
+    answer_text = None
+    last_error = None
+    used_model = LLM_MODEL_NAME
+
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt),
+    ]
+
+    for model_name in models_to_try:
+        try:
+            candidate_llm = ChatGoogleGenerativeAI(
+                model=model_name,
+                google_api_key=resolved_key,
+                temperature=LLM_TEMPERATURE,
+                max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
+                max_retries=1,  # Don't sleep 60s when daily quota is exhausted
             )
+            result = candidate_llm.invoke(messages)
+            answer_text = result.content.strip() if hasattr(result, "content") else str(result).strip()
+            used_model = model_name
+            break
+        except Exception as exc:
+            last_error = str(exc)
+            # If rate-limited, quota-exhausted, or model unavailable, try the next model
+            if (
+                "RESOURCE_EXHAUSTED" in last_error
+                or "429" in last_error
+                or "quota" in last_error.lower()
+                or "404" in last_error
+                or "not available" in last_error.lower()
+            ):
+                continue
+            # For invalid API key or fatal client error, stop immediately
+            break
+
+    if answer_text is None:
+        error_msg = last_error or "LLM generation failed."
+        if "RESOURCE_EXHAUSTED" in error_msg or "429" in error_msg:
+            is_daily = "GenerateRequestsPerDay" in error_msg or "PerDay" in error_msg or "per day" in error_msg.lower()
+            import re
+            time_match = re.search(r"retry in\s+([0-9hmsd\.\s]+)", error_msg)
+            time_hint = f" (Google resets quota in ~{time_match.group(1).strip()})" if time_match else ""
+            if is_daily:
+                return RAGResponse(
+                    answer="",
+                    error=(
+                        f"Daily free-tier request quota exhausted on your Google AI Studio API key across models{time_hint}. "
+                        "Because Google limits free keys per 24 hours, you can create a fresh free key in 10 seconds at "
+                        "https://aistudio.google.com/apikey, then click 'Settings' in docRag to paste it."
+                    ),
+                )
+            else:
+                return RAGResponse(
+                    answer="",
+                    error=(
+                        "Rate limit exceeded for Gemini free tier (429 requests/min). "
+                        "Please wait 30 seconds before submitting another question."
+                    ),
+                )
         elif "API_KEY_INVALID" in error_msg or "invalid" in error_msg.lower():
             return RAGResponse(
                 answer="",
                 error=(
                     "Invalid Google Gemini API key. Please check your key at "
-                    "https://aistudio.google.com/apikey and update it."
+                    "https://aistudio.google.com/apikey and update it in docRag Settings."
                 ),
             )
         return RAGResponse(
