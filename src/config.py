@@ -46,9 +46,9 @@ def get_gemini_api_key(override_key: str | None = None) -> str:
     return os.getenv("GOOGLE_API_KEY", "").strip()
 
 
-# Which Gemini model to call.  "gemini-2.0-flash" is available on the free
-# tier, is fast, and handles RAG-style prompts well.
-LLM_MODEL_NAME: str = "gemini-2.0-flash"
+# Which Gemini model to call. "gemini-3.8-flash" is Google's recommended
+# free-tier model for high accuracy, grounded QA, and fast inference.
+LLM_MODEL_NAME: str = os.getenv("LLM_MODEL_NAME", "gemini-3.8-flash")
 
 # Temperature controls randomness.  0.1 keeps answers factual and
 # reproducible — good for citation-grounded QA.  Raise toward 0.7 if you
