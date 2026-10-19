@@ -205,17 +205,28 @@ GOOGLE_API_KEY=AIzaSyYourActualKeyHere
 ```
 *(Alternatively, you can skip this step and enter your key directly into the sidebar input field in the web app).*
 
-### 6. Run the application
+### 6. Run the Application
+
+You have **two interfaces** to choose from:
+
+#### Option A: Professional Custom Dark Web UI (FastAPI + Modern Web App)
+Inspired by modern AI interfaces like **Zyricon** and **Nextmove** with glowing orb, multi-chat sidebar, multi-PDF upload, and live document inspector:
+```bash
+python server.py
+```
+Open your browser at **`http://localhost:8000`**.
+
+#### Option B: Classic Streamlit Interface
 ```bash
 streamlit run app.py
 ```
-Open your browser at `http://localhost:8501`.
+Open your browser at **`http://localhost:8501`**.
 
 ---
 
 ## 🧪 Running the Automated Tests
 
-docRag includes 20 comprehensive unit and integration tests covering extraction, page metadata, citation parsing, hallucination rejection, and error fallbacks.
+docRag includes 24 comprehensive unit and integration tests covering extraction, page metadata, citation parsing, hallucination rejection, multi-chat sessions, and API endpoints.
 
 Run the entire test suite:
 ```bash
@@ -224,46 +235,29 @@ python -m unittest discover tests -v
 
 Expected output:
 ```
-test_empty_bytes (tests.test_pdf_processing.TestPDFProcessing.test_empty_bytes) ... ok
-test_empty_or_scanned_pdf (tests.test_pdf_processing.TestPDFProcessing.test_empty_or_scanned_pdf) ... ok
-test_extract_valid_multipage_pdf (tests.test_pdf_processing.TestPDFProcessing.test_extract_valid_multipage_pdf) ... ok
-...
-Ran 20 tests in 16.8s
+Ran 24 tests in 33.0s
 
 OK
 ```
 
 ---
 
-## ☁️ Free Deployment to Streamlit Community Cloud
+## 🌐 Deployment Guides
 
-Streamlit Community Cloud offers **100% free hosting** for public GitHub repositories with 1 GB of RAM and 1 CPU core, which fully meets docRag's lightweight footprint.
+### Deploying the Custom Frontend to Netlify
+1. Connect your repository to Netlify at [app.netlify.com](https://app.netlify.com).
+2. The included [`netlify.toml`](netlify.toml) automatically sets the publish directory to `static/`.
+3. If hosting your FastAPI backend on Render, Railway, or Fly.io (free tiers), enter your backend URL in the frontend's Settings modal.
 
-### Step-by-Step Deployment:
-1. **Push your code to GitHub:**
-   ```bash
-   git init
-   git add .
-   git commit -m "feat: complete docRag v1 implementation"
-   git branch -M main
-   git remote add origin https://github.com/<your-username>/docRag.git
-   git push -u origin main
+### Deploying Streamlit to Streamlit Community Cloud
+1. Push your repository to GitHub.
+2. Sign in to [share.streamlit.io](https://share.streamlit.io).
+3. Select your repository and set Main file path to `app.py`.
+4. In **Advanced Settings ➔ Secrets**, add:
+   ```toml
+   GOOGLE_API_KEY = "AIzaSyYourActualKeyHere"
    ```
-2. **Sign in to Streamlit Cloud:**
-   Visit [share.streamlit.io](https://share.streamlit.io) and authenticate with your GitHub account.
-3. **Deploy New App:**
-   - Click **"New app"**.
-   - Select your repository (`<your-username>/docRag`), branch (`main`), and set Main file path to `app.py`.
-4. **Configure Secrets (API Key):**
-   - Click **"Advanced settings..."** before deploying (or under App Settings -> Secrets later).
-   - In the **Secrets** text box, add:
-     ```toml
-     GOOGLE_API_KEY = "AIzaSyYourActualKeyHere"
-     ```
-   - Click **Save**.
-5. **Launch!**
-   - Click **Deploy!**
-   - Your app will be live with a public URL in 2-3 minutes.
+5. Click **Deploy!**
 
 ---
 
