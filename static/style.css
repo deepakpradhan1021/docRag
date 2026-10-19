@@ -3,22 +3,35 @@
    ========================================================================== */
 
 :root {
-  --bg-main: #0b0c10;
-  --bg-sidebar: #0f1016;
-  --bg-card: #151622;
-  --bg-card-hover: #1c1d2d;
-  --bg-input: #141521;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-glow: rgba(168, 85, 247, 0.4);
+  /* =========================================================================
+     Color Palette (Extracted from User's Uploaded Swatch):
+     - #0B1420 / #0C1826: Deep Midnight Navy
+     - #26425A: Deep Slate Ocean
+     - #86A8CF: Serene Soft Sky Blue
+     - #E1CBD7: Delicate Lilac Blush
+     - #C38EB4: Dusty Rose / Mauve Orchid
+     ========================================================================= */
+  --bg-main: #0B1420;
+  --bg-sidebar: #070D16;
+  --bg-card: #132233;
+  --bg-card-hover: #1A2D43;
+  --bg-input: #101C2B;
+  --border-subtle: rgba(134, 168, 207, 0.16);
+  --border-glow: rgba(195, 142, 180, 0.45);
 
-  --accent-purple: #a855f7;
-  --accent-purple-glow: rgba(168, 85, 247, 0.25);
-  --accent-pink: #ec4899;
-  --accent-gradient: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  --accent-rose: #C38EB4;
+  --accent-blush: #E1CBD7;
+  --accent-blue: #86A8CF;
+  --accent-slate: #26425A;
 
-  --text-main: #f3f4f6;
-  --text-muted: #9ca3af;
-  --text-dim: #6b7280;
+  --accent-purple: #C38EB4;
+  --accent-purple-glow: rgba(195, 142, 180, 0.28);
+  --accent-pink: #86A8CF;
+  --accent-gradient: linear-gradient(135deg, #C38EB4 0%, #86A8CF 100%);
+
+  --text-main: #F4EFF2;
+  --text-muted: #A3B8CE;
+  --text-dim: #687D94;
 
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --sidebar-width: 280px;
@@ -45,8 +58,8 @@ body {
   width: 100vw;
   height: 100vh;
   position: relative;
-  background: radial-gradient(circle at 75% 20%, rgba(120, 50, 180, 0.12) 0%, transparent 45%),
-              radial-gradient(circle at 20% 80%, rgba(236, 72, 153, 0.06) 0%, transparent 40%),
+  background: radial-gradient(circle at 75% 20%, rgba(134, 168, 207, 0.16) 0%, transparent 48%),
+              radial-gradient(circle at 20% 85%, rgba(195, 142, 180, 0.14) 0%, transparent 45%),
               var(--bg-main);
 }
 
@@ -204,9 +217,10 @@ body {
 }
 
 .chat-item.active {
-  background: linear-gradient(90deg, rgba(168, 85, 247, 0.18) 0%, rgba(236, 72, 153, 0.12) 100%);
+  background: linear-gradient(90deg, rgba(195, 142, 180, 0.22) 0%, rgba(134, 168, 207, 0.14) 100%);
   color: #ffffff;
   font-weight: 600;
+  border-left: 3px solid var(--accent-rose);
 }
 
 /* Neon Pill Indicator on the right edge of active nav */
@@ -219,8 +233,8 @@ body {
   width: 4px;
   height: 20px;
   border-radius: 3px;
-  background: var(--accent-pink);
-  box-shadow: 0 0 10px var(--accent-pink);
+  background: var(--accent-gradient);
+  box-shadow: 0 0 10px rgba(195, 142, 180, 0.8);
 }
 
 .chat-item-left {
@@ -294,8 +308,8 @@ body {
 }
 
 .upgrade-card {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(20, 21, 33, 0.9) 100%);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  background: linear-gradient(135deg, rgba(38, 66, 90, 0.4) 0%, rgba(19, 34, 51, 0.95) 100%);
+  border: 1px solid rgba(134, 168, 207, 0.28);
   border-radius: 14px;
   padding: 14px;
   text-align: center;
@@ -457,8 +471,8 @@ body {
 }
 
 .message-row.user .message-bubble {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(236, 72, 153, 0.15) 100%);
-  border: 1px solid rgba(168, 85, 247, 0.4);
+  background: linear-gradient(135deg, rgba(195, 142, 180, 0.28) 0%, rgba(134, 168, 207, 0.18) 100%);
+  border: 1px solid rgba(195, 142, 180, 0.42);
   color: #ffffff;
   border-bottom-right-radius: 4px;
 }
@@ -515,8 +529,8 @@ body {
 }
 
 .citation-card {
-  background: rgba(11, 12, 16, 0.5);
-  border: 1px solid rgba(168, 85, 247, 0.2);
+  background: rgba(16, 28, 43, 0.65);
+  border: 1px solid rgba(134, 168, 207, 0.25);
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 8px;
@@ -528,13 +542,13 @@ body {
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  color: #e2e8f0;
+  color: #f1f5f9;
   margin-bottom: 4px;
 }
 
 .citation-badge {
-  background: rgba(168, 85, 247, 0.25);
-  color: #d8b4fe;
+  background: rgba(195, 142, 180, 0.25);
+  color: #E1CBD7;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 11px;
@@ -569,10 +583,10 @@ body {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #f472b6, #a855f7 40%, #6366f1 70%, #0b0c10 100%);
-  box-shadow: 0 0 35px rgba(168, 85, 247, 0.6),
-              0 0 70px rgba(236, 72, 153, 0.3),
-              inset -5px -5px 15px rgba(0, 0, 0, 0.6);
+  background: radial-gradient(circle at 30% 30%, #E1CBD7 0%, #C38EB4 35%, #86A8CF 70%, #26425A 100%);
+  box-shadow: 0 0 35px rgba(195, 142, 180, 0.55),
+              0 0 70px rgba(134, 168, 207, 0.35),
+              inset -5px -5px 15px rgba(11, 20, 32, 0.85);
   animation: floatOrb 4s ease-in-out infinite alternate;
 }
 
@@ -855,18 +869,18 @@ body {
 
 /* File Upload Drop Area inside Attach Modal */
 .dropzone {
-  border: 2px dashed rgba(168, 85, 247, 0.4);
+  border: 2px dashed rgba(195, 142, 180, 0.4);
   border-radius: 14px;
   padding: 32px 20px;
   text-align: center;
   cursor: pointer;
-  background: rgba(168, 85, 247, 0.04);
+  background: rgba(195, 142, 180, 0.04);
   transition: all 0.2s;
 }
 
 .dropzone:hover {
-  background: rgba(168, 85, 247, 0.08);
-  border-color: var(--accent-purple);
+  background: rgba(195, 142, 180, 0.09);
+  border-color: var(--accent-rose);
 }
 
 .dropzone svg {
