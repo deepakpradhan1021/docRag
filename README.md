@@ -14,8 +14,9 @@
 
 ## 🌟 Live Demo & Links
 
+- **Live Public Web App (Instant Access):** [https://3b2aa06d934697.lhr.life](https://3b2aa06d934697.lhr.life)
 - **GitHub Repository:** [https://github.com/deepakpradhan1021/docRag](https://github.com/deepakpradhan1021/docRag)
-- **Netlify Frontend Team:** [https://app.netlify.com/teams/deepakpradhan1612/projects](https://app.netlify.com/teams/deepakpradhan1612/projects)
+- **Netlify Team Projects:** [https://app.netlify.com/teams/deepakpradhan1612/projects](https://app.netlify.com/teams/deepakpradhan1612/projects)
 - **Local Application Server:** `http://127.0.0.1:8000`
 
 ---
