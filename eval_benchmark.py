@@ -101,12 +101,13 @@ def run_benchmark():
     print(f"Extracted {len(pages)} pages from synthetic benchmark PDF ({meta.file_size_bytes} bytes).")
 
     langchain_docs = pages_to_langchain_documents(pages)
-    chunks = split_documents_into_chunks(langchain_docs, chunk_size=800, chunk_overlap=150)
-    print(f"Created {len(chunks)} text chunks. Initializing FAISS vector store...")
+    chunks = split_documents_into_chunks(langchain_docs, chunk_size=1000, chunk_overlap=200)
+    print(f"Created {len(chunks)} text chunks with app settings (1000 chunk_size, 200 overlap). Initializing FAISS vector store...")
 
     vector_store = create_vector_store(chunks)
 
     correct_page_retrievals = 0
+    top1_page_retrievals = 0
     total_questions = len(BENCHMARK_DATA)
 
     print("\nRunning 10 Ground-Truth Test Queries:")
@@ -119,27 +120,30 @@ def run_benchmark():
 
         retrieved_pages = [c.metadata.get("page") for c in retrieved]
         hit = expected_page in retrieved_pages
+        top1_hit = len(retrieved_pages) > 0 and retrieved_pages[0] == expected_page
 
-        status = "PASS" if hit else "FAIL"
+        status = "PASS (Top-1)" if top1_hit else ("PASS (Recall@3)" if hit else "FAIL")
         if hit:
             correct_page_retrievals += 1
+        if top1_hit:
+            top1_page_retrievals += 1
 
         top_page = retrieved_pages[0] if retrieved_pages else "None"
         print(f"Q{i:02d}: Expected Page {expected_page:02d} | Top-1: Page {top_page} | Hits: {retrieved_pages} -> [{status}]")
 
-    accuracy = (correct_page_retrievals / total_questions) * 100
+    recall3 = (correct_page_retrievals / total_questions) * 100
+    top1_acc = (top1_page_retrievals / total_questions) * 100
     print("-" * 65)
-    print(f"Results: {correct_page_retrievals}/{total_questions} Queries Retrieved Correct Page.")
-    print(f"Page Hit Rate (Recall@3): {accuracy:.1f}%")
+    print(f"Top-1 Precision: {top1_page_retrievals}/{total_questions} ({top1_acc:.1f}%)")
+    print(f"Recall@3 (Passage Hit Rate): {correct_page_retrievals}/{total_questions} ({recall3:.1f}%)")
     print("=" * 65)
-    return correct_page_retrievals, total_questions
+    return correct_page_retrievals, top1_page_retrievals, total_questions
 
 
 class TestRetrievalBenchmark(unittest.TestCase):
     def test_benchmark_hit_rate(self):
-        hits, total = run_benchmark()
-        # Assert at least 90% (9/10) hit rate
-        self.assertGreaterEqual(hits, 9, "Retrieval Recall@3 hit rate must be >= 90%")
+        recall_hits, top1_hits, total = run_benchmark()
+        self.assertGreaterEqual(recall_hits, 9, "Retrieval Recall@3 hit rate must be >= 90%")
 
 
 if __name__ == "__main__":

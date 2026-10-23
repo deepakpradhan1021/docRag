@@ -16,6 +16,13 @@ let currentChatData = null;
 let userApiKey = localStorage.getItem("docRag_apiKey") || "";
 let isServerOnline = false;
 
+// Per-browser persistent unique owner ID to isolate chat histories across visitors
+let browserOwnerId = localStorage.getItem("docRag_ownerId");
+if (!browserOwnerId) {
+  browserOwnerId = "usr_" + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+  localStorage.setItem("docRag_ownerId", browserOwnerId);
+}
+
 // --- DOM Elements ---
 const chatListContainer = document.getElementById("chatListContainer");
 const sidebarDocList = document.getElementById("sidebarDocList");
@@ -301,7 +308,9 @@ function closeModal(modal) {
 
 async function loadChatList() {
   try {
-    const res = await fetch(`${API_BASE}/api/chats`);
+    const res = await fetch(`${API_BASE}/api/chats`, {
+      headers: { "x-owner-id": browserOwnerId },
+    });
     if (!res.ok) throw new Error("Server returned non-200");
     const sessions = await res.json();
     renderChatList(sessions);
@@ -343,8 +352,11 @@ async function createNewChat() {
   try {
     const res = await fetch(`${API_BASE}/api/chats`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "New Chat" }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-owner-id": browserOwnerId,
+      },
+      body: JSON.stringify({ title: "New Chat", owner_id: browserOwnerId }),
     });
     if (!res.ok) throw new Error("Could not create chat");
     const session = await res.json();
@@ -361,7 +373,9 @@ async function createNewChat() {
 async function switchChat(sessionId) {
   currentSessionId = sessionId;
   try {
-    const res = await fetch(`${API_BASE}/api/chats/${sessionId}`);
+    const res = await fetch(`${API_BASE}/api/chats/${sessionId}`, {
+      headers: { "x-owner-id": browserOwnerId },
+    });
     if (!res.ok) throw new Error("Failed to load session");
     currentChatData = await res.json();
     renderCurrentChat();
@@ -379,7 +393,10 @@ async function switchChat(sessionId) {
 async function deleteChat(sessionId) {
   if (!confirm("Are you sure you want to delete this chat session?")) return;
   try {
-    await fetch(`${API_BASE}/api/chats/${sessionId}`, { method: "DELETE" });
+    await fetch(`${API_BASE}/api/chats/${sessionId}`, {
+      method: "DELETE",
+      headers: { "x-owner-id": browserOwnerId },
+    });
     showToast("Chat deleted", "info");
     await loadChatList();
   } catch (err) {
@@ -533,7 +550,10 @@ async function handleSendMessage() {
   try {
     const res = await fetch(`${API_BASE}/api/chats/${currentSessionId}/message`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-owner-id": browserOwnerId,
+      },
       body: JSON.stringify({ question: text, api_key: userApiKey }),
     });
 
@@ -580,6 +600,9 @@ async function handleFilesUpload(files) {
   try {
     const res = await fetch(`${API_BASE}/api/chats/${currentSessionId}/upload`, {
       method: "POST",
+      headers: {
+        "x-owner-id": browserOwnerId,
+      },
       body: formData,
     });
 
