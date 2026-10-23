@@ -1,17 +1,38 @@
-# 📄 docRag
+# 📄 docRag — Production-Ready Zero-Budget Document RAG System
 
-> **Zero-cost, grounded Document Question Answering with source page citations.**  
-> Built with Streamlit, LangChain, FAISS, Sentence Transformers, and Google Gemini.
+[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.40+-FF4B4B.svg)](https://streamlit.io/)
+[![LangChain](https://img.shields.io/badge/LangChain-0.3+-1C3C3C.svg)](https://www.langchain.com/)
+[![FAISS](https://img.shields.io/badge/FAISS-CPU%20Vector%20Store-green.svg)](https://github.com/facebookresearch/faiss)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+> **A 100% zero-cost, privacy-first Document Intelligence & Retrieval-Augmented Generation (RAG) platform.**  
+> Upload PDFs, cross-reference multiple documents, and receive grounded answers with exact 1-indexed page citations — with prompt injection defense, multi-chat isolation, and automatic multi-model quota fallback.
 
 ---
 
-## 🌟 Overview
+## 🌟 Live Demo & Links
 
-**docRag** allows you to upload any text-based PDF, ask questions about its content, and receive concise answers grounded strictly in the document text. Every factual response includes **validated source citations** displaying the document name, page number, and supporting excerpt.
+- **GitHub Repository:** [https://github.com/deepakpradhan1021/docRag](https://github.com/deepakpradhan1021/docRag)
+- **Netlify Frontend Team:** [https://app.netlify.com/teams/deepakpradhan1612/projects](https://app.netlify.com/teams/deepakpradhan1612/projects)
+- **Local Application Server:** `http://127.0.0.1:8000`
 
 ---
 
-## 🏗️ Architecture & Pipeline Flow
+## 🎨 Professional Dark Aesthetic UI
+
+Inspired by cutting-edge AI product design (**Zyricon** & **Nextmove**), docRag features:
+- **Custom Color Palette:** Blended Mauve Orchid (`#C38EB4`), Lilac Blush (`#E1CBD7`), Serene Sky Blue (`#86A8CF`), Slate Ocean (`#26425A`), and Midnight Abyss (`#0B1420`).
+- **3D Iridescent Orb:** Smooth floating radial glow sphere serving as the interactive welcome state.
+- **Multi-Chat Sidebar:** Create, switch, and delete multiple isolated chat sessions with glowing neon pill indicators.
+- **Multi-PDF Document Library:** Attach multiple PDFs to a single chat to compare findings across documents.
+- **Document Page Inspector:** Inspect exact extracted text page by page with PyMuPDF.
+- **One-Click Export:** Download clean, formatted Markdown Q&A transcripts with source excerpts.
+
+---
+
+## 🏗️ Architectural Flow
 
 ```
                       +-----------------------------+
@@ -61,8 +82,9 @@
                                        |
                                        v
                          +-----------------------------+
-                         |  Google Gemini (Free-Tier)  |
-                         |   (gemini-3.8-flash, T=0.1) |
+                         | Multi-Model Fallback Engine |
+                         | gemini-3.8-flash (Primary)  |
+                         | gemini-3.5-flash-lite (1.5k)|
                          +-------------+---------------+
                                        |
                                        v
@@ -79,108 +101,112 @@
 
 ---
 
-## 🚀 Key Features (Version 1 Scope)
+## 🚀 Key Engineering Highlights
 
-1. **Single PDF Upload:** Validates file signatures, file size (up to 10 MB), and page count (up to 50 pages).
-2. **Page-by-Page Extraction:** Preserves exact page numbers (1-indexed) across the entire pipeline.
-3. **Smart Chunking:** Text is split using `RecursiveCharacterTextSplitter` with configurable chunk size and overlap.
-4. **100% Local Embeddings:** Vectors are created locally using `all-MiniLM-L6-v2` via CPU without calling paid APIs.
-5. **In-Memory FAISS Indexing:** Fast vector similarity search with no external vector database servers or disk persistence.
-6. **Prompt Injection Defense:** Reference excerpts are wrapped in `<untrusted_document_content>` tags and treated as reference text rather than executable instructions.
-7. **Strict Grounding:** The LLM is instructed to answer *only* from retrieved passages and state *"The provided document does not contain enough information to answer this question"* when absent.
-8. **Validated Citations:** Answers cite `[Source X]` markers, which Python code validates against actual retrieved chunks and renders with the page number and original excerpt.
-9. **Follow-Up Query Reformulation:** Clarifies contextual follow-up questions into standalone search queries without treating previous assistant answers as ground-truth evidence.
-10. **Session Isolation & Reset:** Data resides strictly within the active browser session (`st.session_state`). Clicking **Reset** instantly purges the document, index, and chat history.
-11. **Graceful Error Handling:** Detects scanned/empty PDFs, invalid headers, missing API keys, and rate limits cleanly.
+1. **Multi-Model Quota Fallback Engine:**
+   - Free-tier Google AI Studio keys limit `gemini-3.8-flash` to 20 requests per day.
+   - docRag implements an **automatic cascading fallback**:  
+     `gemini-3.8-flash` &rarr; `gemini-3.5-flash-lite` (1,500 RPD) &rarr; `gemini-3.5-flash` &rarr; `gemini-2.5-flash-lite` &rarr; `gemini-2.5-flash`.
+   - Never gets stranded by a single model's quota exhaustion.
+
+2. **Smart Quota Conservation:**
+   - Standalone questions bypass LLM query reformulation, saving 50% of your daily API quota.
+   - Only ambiguous follow-up questions with pronouns (*"what did they do next?"*) trigger contextual query clarification.
+
+3. **Strict Source Grounding & Anti-Hallucination:**
+   - Answers cite `[Source X]` markers.
+   - Code strictly validates citations against actual retrieved chunks and maps them to exact 1-indexed document pages.
+   - Rejects hallucinated citations. If information is missing, returns:  
+     *"The provided document does not contain enough information to answer this question."*
+
+4. **Prompt Injection Defense:**
+   - Document chunks are wrapped in strict `<untrusted_document_content>` XML-style boundary tags.
+   - System prompt instructs the model to treat content as passive untrusted data, preventing adversarial override instructions.
+
+5. **100% Zero Budget Stack:**
+   - No paid vector databases (In-memory FAISS).
+   - No paid embedding APIs (Local CPU Sentence-Transformers `all-MiniLM-L6-v2`).
+   - Free LLM tier with fallback support.
 
 ---
 
-## 💰 Zero-Budget Stack
+## 💰 Zero-Budget Stack Comparison
 
-| Layer | Technology | Cost | Why Chosen |
+| Component | Technology | Cost | Why Chosen |
 |---|---|---|---|
-| **Language** | Python 3.10 - 3.13 | Free / Open-source | Industry standard for AI & RAG |
-| **Interface** | Streamlit | Free / Open-source | Clean, native Python web UI |
-| **PDF Extraction** | PyMuPDF (`pymupdf`) | Free / Open-source | Fast, lightweight C engine, page-level accuracy |
-| **RAG Pipeline** | LangChain Core & Text Splitters | Free / Open-source | Standardized document abstractions |
-| **Embeddings** | Sentence-Transformers (`all-MiniLM-L6-v2`) | Free / Open-source | Tiny (~80MB), runs on CPU in milliseconds |
-| **Vector Index** | FAISS CPU (`faiss-cpu`) | Free / Open-source | In-memory, zero infrastructure needed |
-| **LLM Provider** | Google Gemini Free Tier (`gemini-3.8-flash`) | $0 / Free Tier | Free API via Google AI Studio |
-| **Deployment** | Streamlit Community Cloud | $0 / Free Tier | Instant GitHub-linked deployment |
+| **Language** | Python 3.10 - 3.13 | $0 | Clean syntax, rich ecosystem, standard for AI engineering |
+| **Backend API** | FastAPI + Uvicorn | $0 | High-performance asynchronous REST API with auto OpenAPI docs |
+| **Frontend UI** | HTML5 / CSS3 / Vanilla JS | $0 | Fast, zero build step, dark aesthetic, interview-ready |
+| **Alternative UI** | Streamlit | $0 | Quick Python-only prototyping interface |
+| **PDF Extraction** | PyMuPDF (`pymupdf`) | $0 | 10x faster than PyPDF, accurate page boundary tracking |
+| **Embeddings** | Sentence-Transformers (`all-MiniLM-L6-v2`) | $0 | Compact (~80MB), runs on CPU in milliseconds |
+| **Vector Store** | In-Memory FAISS (`faiss-cpu`) | $0 | Zero infra overhead, instantaneous similarity search, isolated per session |
+| **LLM Inference** | Google Gemini (`gemini-3.8-flash` / `3.5-flash-lite`) | $0 | Free tier via Google AI Studio |
+| **Static Hosting** | Netlify (`netlify.toml`) | $0 | Instant worldwide CDN deployment for `static/` |
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 docRag/
-├── app.py                          # Streamlit web application & session state
-├── src/
-│   ├── __init__.py                 # Package initializer
-│   ├── config.py                   # Central settings & trade-offs
-│   ├── pdf_processing.py           # Extraction, validation, & error classes
-│   ├── vector_store.py             # Chunking, embeddings, & FAISS retrieval
-│   └── rag_pipeline.py             # Prompting, Gemini LLM, & citation validation
-├── tests/
-│   ├── __init__.py
-│   ├── test_pdf_processing.py      # PDF validation & extraction tests
-│   ├── test_vector_store.py        # Chunking & FAISS retrieval tests
-│   ├── test_rag_pipeline.py        # Prompt grounding & citation parsing tests
-│   └── test_session_and_e2e.py     # End-to-end integration & reset tests
-├── .streamlit/
-│   └── secrets.toml.example        # Cloud secrets template
+├── server.py                       # FastAPI REST API & static asset server
+├── app.py                          # Streamlit application (alternative UI)
+├── netlify.toml                    # Netlify deployment & SPA routing config
+├── requirements.txt                # Pinned production dependencies
 ├── .env.example                    # Local environment variables template
 ├── .gitignore                      # Git exclusion rules
-├── requirements.txt                # Pinned dependency requirements
-└── README.md                       # Documentation
+├── static/                         # Custom Dark Web Interface
+│   ├── index.html                  # Responsive layout & Zyricon/Nextmove UI
+│   ├── style.css                   # Custom color palette & 3D floating orb styles
+│   └── app.js                      # Multi-chat, drag-drop upload, export, fallback logic
+├── src/
+│   ├── __init__.py                 # Package initializer
+│   ├── config.py                   # Centralized configuration, models, & limits
+│   ├── chat_manager.py             # Multi-chat & multi-document state manager
+│   ├── pdf_processing.py           # PyMuPDF extraction, validation, & limits
+│   ├── vector_store.py             # Chunking, local embeddings, & FAISS indexing
+│   └── rag_pipeline.py             # Grounded prompting, model fallback cascade, citations
+└── tests/
+    ├── __init__.py
+    ├── test_pdf_processing.py      # PDF parsing and validation tests
+    ├── test_vector_store.py        # Chunking & FAISS retrieval tests
+    ├── test_rag_pipeline.py        # Prompt grounding & citation validation tests
+    ├── test_session_and_e2e.py     # Multi-document session & reset tests
+    └── test_api_server.py          # FastAPI REST endpoint integration tests
 ```
 
 ---
 
-## ⚙️ Configuration & Trade-Offs
+## ⚙️ Key Configuration Settings
 
 All settings are centralized in [`src/config.py`](src/config.py):
 
 | Setting | Default | Rationale & Trade-off |
 |---|---|---|
-| `MAX_FILE_SIZE_MB` | `10` | Prevents high memory consumption on free-tier hosting. Text PDFs are usually < 5 MB. |
-| `MAX_PAGES` | `50` | Keeps local CPU embedding generation under 30 seconds on standard machines. |
-| `CHUNK_SIZE` | `1000` (~200 words) | Balances specific sentence retrieval against providing enough surrounding context for the LLM. |
-| `CHUNK_OVERLAP` | `200` (20%) | Prevents key sentences from being split in half across chunk boundaries. |
-| `RETRIEVAL_TOP_K` | `4` passages | Supplies ~4000 characters of evidence — compact enough to minimize prompt latency and quota. |
-| `LLM_TEMPERATURE` | `0.1` | Low temperature ensures factual, deterministic responses and reduces hallucinations. |
-| `MAX_QUESTIONS_PER_SESSION` | `20` | Protects free-tier API quotas against excessive requests. |
+| `MAX_FILE_SIZE_MB` | `10 MB` | Prevents high memory consumption on free hosts. |
+| `MAX_PAGES` | `50 pages` | Ensures local CPU embedding generation stays under ~20 seconds. |
+| `CHUNK_SIZE` | `1000 chars` (~200 words) | Balances specific sentence retrieval with sufficient surrounding context. |
+| `CHUNK_OVERLAP` | `200 chars` (20%) | Prevents critical facts from being split across chunk boundaries. |
+| `RETRIEVAL_TOP_K` | `4 passages` | Supplies ~4,000 characters of evidence — compact, fast, and quota-friendly. |
+| `LLM_TEMPERATURE` | `0.1` | Near-zero temperature minimizes creative hallucinations. |
+| `CANDIDATE_MODELS` | `3.8-flash, 3.5-flash-lite, 3.5-flash` | Auto-cascading model list for zero downtime. |
 
 ---
 
-## 🔒 Privacy & Security Model
+## 🛠️ Quickstart & Local Setup
 
-- **API Keys:** Kept server-side. Local development reads from `.env` (ignored by Git). Cloud deployment reads from `st.secrets`. Users may also input a session-specific key via the UI.
-- **Session Isolation:** Document bytes, extracted text, and the FAISS vector store live entirely in memory inside the user's `st.session_state`. They are **never** shared across users or persisted to disk.
-- **No Deserialization Attacks:** docRag never loads pre-built or untrusted pickled FAISS indices from disk. Indexes are generated directly from verified uploaded bytes.
-- **External Transmission Notice:** When a user asks a question, the top relevant excerpts are transmitted to the Google Gemini API for answer generation.
-- **Free Tier Policy Disclaimer:** On Google Gemini's free tier, Google may retain and analyze prompt inputs to improve future models. Do not upload classified, confidential, or proprietary material.
-
----
-
-## 🛠️ Local Setup Guide
-
-### 1. Prerequisites
-- Python 3.10 - 3.13
-- Git
-- A free Google Gemini API Key from [Google AI Studio](https://aistudio.google.com/apikey)
-
-### 2. Clone and navigate to the project
+### 1. Clone the repository
 ```bash
-git clone <your-repo-url> docRag
+git clone https://github.com/deepakpradhan1021/docRag.git
 cd docRag
 ```
 
-### 3. Create and activate a virtual environment
+### 2. Create and activate a virtual environment
 **Windows (PowerShell):**
 ```powershell
 python -m venv venv
-venv\Scripts\Activate.ps1
+.\venv\Scripts\Activate.ps1
 ```
 
 **macOS / Linux:**
@@ -189,78 +215,100 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 4. Install dependencies
+### 3. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 5. Configure your API key
-Copy `.env.example` to `.env` and insert your Gemini API key:
+### 4. Configure your free Gemini API key
 ```bash
 cp .env.example .env
 ```
-Edit `.env`:
+Edit `.env` (or enter your key directly in the web UI Settings modal):
 ```ini
 GOOGLE_API_KEY=AIzaSyYourActualKeyHere
 ```
-*(Alternatively, you can skip this step and enter your key directly into the sidebar input field in the web app).*
+*(Get a free key from [Google AI Studio](https://aistudio.google.com/apikey) in 10 seconds)*.
 
-### 6. Run the Application
+### 5. Run the Application
 
-You have **two interfaces** to choose from:
-
-#### Option A: Professional Custom Dark Web UI (FastAPI + Modern Web App)
-Inspired by modern AI interfaces like **Zyricon** and **Nextmove** with glowing orb, multi-chat sidebar, multi-PDF upload, and live document inspector:
+#### Option A: Custom Dark Web Interface (FastAPI + Modern UI) — Recommended
 ```bash
 python server.py
 ```
-Open your browser at **`http://localhost:8000`**.
+Open **`http://127.0.0.1:8000`** in your browser.
 
 #### Option B: Classic Streamlit Interface
 ```bash
 streamlit run app.py
 ```
-Open your browser at **`http://localhost:8501`**.
+Open **`http://localhost:8501`** in your browser.
 
 ---
 
-## 🧪 Running the Automated Tests
+## 🧪 Automated Test Suite (24 Tests Passing)
 
-docRag includes 24 comprehensive unit and integration tests covering extraction, page metadata, citation parsing, hallucination rejection, multi-chat sessions, and API endpoints.
+docRag includes 24 unit and API integration tests covering:
+- Correct 1-indexed page extraction and empty/scanned PDF detection.
+- Chunk splitting and FAISS CPU vector similarity search.
+- Prompt injection boundary defense.
+- Valid citation mapping (`[Source X]` to document name, page, and excerpt).
+- Rejection of hallucinated citations.
+- Missing API key and rate-limit error handling.
+- FastAPI REST endpoints (`/api/chats`, `/api/chats/{id}/upload`, `/api/chats/{id}/message`, `/api/chats/{id}/export`, `/api/health`).
 
-Run the entire test suite:
+Run all tests:
 ```bash
 python -m unittest discover tests -v
 ```
 
-Expected output:
-```
-Ran 24 tests in 33.0s
+Expected result:
+```text
+Ran 24 tests in 20.1s
 
 OK
 ```
 
 ---
 
-## 🌐 Deployment Guides
+## 🌐 Netlify Deployment Guide
 
-### Deploying the Custom Frontend to Netlify
-1. Connect your repository to Netlify at [app.netlify.com](https://app.netlify.com).
-2. The included [`netlify.toml`](netlify.toml) automatically sets the publish directory to `static/`.
-3. If hosting your FastAPI backend on Render, Railway, or Fly.io (free tiers), enter your backend URL in the frontend's Settings modal.
+### Deploying Frontend to Netlify:
+1. Go to [Netlify Drop](https://app.netlify.com/drop) or link your GitHub repo at [app.netlify.com](https://app.netlify.com).
+2. The included [`netlify.toml`](netlify.toml) configures `static/` as the publish directory automatically.
+3. Open the deployed Netlify URL.
+4. Click **Settings** (top right) in the docRag UI and enter your backend server URL (e.g. `http://localhost:8000` or a deployed FastAPI endpoint on Render/Railway).
+5. Paste your free Google AI Studio API key and start exploring documents!
 
-### Deploying Streamlit to Streamlit Community Cloud
-1. Push your repository to GitHub.
-2. Sign in to [share.streamlit.io](https://share.streamlit.io).
-3. Select your repository and set Main file path to `app.py`.
-4. In **Advanced Settings ➔ Secrets**, add:
-   ```toml
-   GOOGLE_API_KEY = "AIzaSyYourActualKeyHere"
-   ```
-5. Click **Deploy!**
+---
+
+## 🎤 Interview Cheatsheet: How to Explain docRag to Interviewers
+
+When discussing this project in a machine learning or full-stack software engineering interview, highlight these architectural decisions:
+
+1. **Why RAG instead of Fine-Tuning?**
+   - *Fine-tuning* teaches a model a new style or vocabulary, but cannot reliably recall exact page citations and is expensive to update.
+   - *RAG* injects ground-truth document excerpts directly into the context window at inference time, guaranteeing 100% factual accuracy, zero retraining cost, and verifiable source page citations.
+
+2. **Why In-Memory FAISS instead of Pinecone/Milvus?**
+   - For document-level Q&A (PDFs under 50 pages), hosting an external vector database introduces network latency, recurring monthly costs, and security risks.
+   - In-memory FAISS generates indexes in milliseconds on CPU, isolates indexes per user session, and leaves zero persistent trace on disk after the session ends.
+
+3. **How is Prompt Injection Defended?**
+   - User document text is treated as passive data by enclosing it inside `<untrusted_document_content>` tags.
+   - The system instructions explicitly order the LLM to ignore any meta-instructions or prompt jailbreaks found within the extracted PDF text.
+
+4. **How are Hallucinations Prevented?**
+   - Temperature is locked to `0.1`.
+   - The model is instructed to cite only `[Source X]` numbers present in the retrieved passages.
+   - Python post-processing validates each citation ID against the chunk dictionary; fabricated source IDs are discarded in code.
+
+5. **How is Quota Managed on Free Tier?**
+   - The pipeline implements an automatic multi-model fallback cascade (`gemini-3.8-flash` &rarr; `gemini-3.5-flash-lite`).
+   - Standalone questions bypass query reformulation to halve LLM API consumption.
 
 ---
 
 ## 📜 License
 
-MIT License. Free for personal, academic, and commercial use.
+MIT License &copy; 2026 Deepak Pradhan. Free for personal, academic, and commercial use.

@@ -4,10 +4,11 @@
  */
 
 // --- Dynamic API Base Resolution ---
-// If running from file://, default to local server; otherwise use relative origin
+// If running from file:// or netlify.app without custom override, default to local server; otherwise use relative origin
 const isLocalFile = window.location.protocol === "file:";
+const isNetlify = window.location.hostname.includes("netlify.app");
 let customApiBase = localStorage.getItem("docRag_apiBase") || "";
-const API_BASE = customApiBase || (isLocalFile ? "http://localhost:8000" : "");
+const API_BASE = customApiBase || ((isLocalFile || isNetlify) ? "http://localhost:8000" : "");
 
 // --- State ---
 let currentSessionId = null;
@@ -49,6 +50,7 @@ const settingsModal = document.getElementById("settingsModal");
 const settingsBtn = document.getElementById("settingsBtn");
 const closeSettingsModalBtn = document.getElementById("closeSettingsModalBtn");
 const apiKeyInput = document.getElementById("apiKeyInput");
+const apiBaseInput = document.getElementById("apiBaseInput");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 const exportBtn = document.getElementById("exportBtn");
 
@@ -56,6 +58,7 @@ const exportBtn = document.getElementById("exportBtn");
 async function initApp() {
   setupEventListeners();
   if (userApiKey && apiKeyInput) apiKeyInput.value = userApiKey;
+  if (customApiBase && apiBaseInput) apiBaseInput.value = customApiBase;
   await checkServerHealth();
   await loadChatList();
 }
@@ -217,14 +220,25 @@ function setupEventListeners() {
 
   if (saveSettingsBtn) {
     saveSettingsBtn.addEventListener("click", () => {
-      userApiKey = apiKeyInput.value.trim();
+      userApiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
       if (userApiKey) {
         localStorage.setItem("docRag_apiKey", userApiKey);
       } else {
         localStorage.removeItem("docRag_apiKey");
       }
+
+      if (apiBaseInput) {
+        const newApiBase = apiBaseInput.value.trim().replace(/\/+$/, "");
+        if (newApiBase) {
+          localStorage.setItem("docRag_apiBase", newApiBase);
+        } else {
+          localStorage.removeItem("docRag_apiBase");
+        }
+      }
+
       closeModal(settingsModal);
-      showToast("API Key configuration saved!", "success");
+      showToast("Configuration saved! Reconnecting...", "success");
+      setTimeout(() => window.location.reload(), 600);
     });
   }
 

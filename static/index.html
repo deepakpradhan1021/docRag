@@ -248,8 +248,14 @@
     </div>
 
     <div class="form-group">
+      <label>Backend API URL (for Netlify / Remote Host):</label>
+      <input type="text" id="apiBaseInput" class="form-control" placeholder="http://localhost:8000 (leave blank for local)">
+      <p style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;">When running on Netlify, point this to your live docRag backend or tunnel (defaults to http://localhost:8000).</p>
+    </div>
+
+    <div class="form-group">
       <label>Active Model:</label>
-      <input type="text" value="gemini-3.8-flash (Zero-Cost Free Tier)" class="form-control" disabled>
+      <input type="text" value="gemini-3.8-flash (Auto-fallback to gemini-3.5-flash-lite)" class="form-control" disabled>
     </div>
 
     <div class="form-group">
