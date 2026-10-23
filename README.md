@@ -17,7 +17,7 @@
 
 ## 🌟 Live Demo & Links
 
-- **Live Public Web App (Active Session):** [https://594f94969786e0.lhr.life](https://594f94969786e0.lhr.life)
+- **Live Public Web App (Active Session):** [https://92ba1f864026c6.lhr.life](https://92ba1f864026c6.lhr.life)
 - **GitHub Repository:** [https://github.com/deepakpradhan1021/docRag](https://github.com/deepakpradhan1021/docRag)
 
 ---
