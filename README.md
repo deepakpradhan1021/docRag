@@ -1,5 +1,6 @@
 # 📄 docRag — Production-Ready Zero-Budget Document RAG System
 
+[![CI Test Suite](https://github.com/deepakpradhan1021/docRag/actions/workflows/ci.yml/badge.svg)](https://github.com/deepakpradhan1021/docRag/actions)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.40+-FF4B4B.svg)](https://streamlit.io/)
@@ -7,17 +8,24 @@
 [![FAISS](https://img.shields.io/badge/FAISS-CPU%20Vector%20Store-green.svg)](https://github.com/facebookresearch/faiss)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **A 100% zero-cost, privacy-first Document Intelligence & Retrieval-Augmented Generation (RAG) platform.**  
-> Upload PDFs, cross-reference multiple documents, and receive grounded answers with exact 1-indexed page citations — with prompt injection defense, multi-chat isolation, and automatic multi-model quota fallback.
+![docRag UI Preview](static/docrag_preview.png)
+
+> **A 100% zero-cost Document Intelligence & Retrieval-Augmented Generation (RAG) platform.**  
+> Upload PDFs, cross-reference multiple documents, and receive grounded answers with exact 1-indexed page citations — featuring prompt injection defense, browser-isolated chats, sliding-window rate limiting, and automatic multi-model quota fallback.
 
 ---
 
 ## 🌟 Live Demo & Links
 
-- **Live Public Web App (Instant Access):** [https://3b2aa06d934697.lhr.life](https://3b2aa06d934697.lhr.life)
+- **Live Public Web App (Active Session):** [https://594f94969786e0.lhr.life](https://594f94969786e0.lhr.life)
 - **GitHub Repository:** [https://github.com/deepakpradhan1021/docRag](https://github.com/deepakpradhan1021/docRag)
-- **Netlify Team Projects:** [https://app.netlify.com/teams/deepakpradhan1612/projects](https://app.netlify.com/teams/deepakpradhan1612/projects)
-- **Local Application Server:** `http://127.0.0.1:8000`
+
+---
+
+## 🔒 Data Privacy & Model Usage Notice
+
+- **Local Embeddings & Vectors:** Embedding generation (`all-MiniLM-L6-v2`) and vector similarity search (FAISS) execute entirely locally on your CPU. Full document vector stores never leave your environment.
+- **External LLM Synthesis:** When asking a question, only the top-4 relevant extracted text snippets are sent via HTTPS to Google's Gemini API to generate the synthesis. Note that under Google's standard free-tier API terms of service, prompt data may be used by Google for product enhancement. For sensitive or proprietary enterprise documents, you may specify a paid Google AI Studio / Vertex AI key or switch the LLM provider to a local Ollama model.
 
 ---
 
@@ -255,7 +263,7 @@ Open **`http://localhost:8501`** in your browser.
 
 ## 📊 ML Retrieval & Page Hit Benchmark
 
-docRag includes an empirical evaluation harness (`eval_benchmark.py`) that tests retrieval accuracy against a synthetic 10-page ground-truth document:
+docRag includes an empirical evaluation harness (`eval_benchmark.py`) that tests retrieval accuracy against a synthetic 10-page ground-truth document using the exact production chunking parameters (1000 chunk size, 200 overlap):
 
 ```bash
 python eval_benchmark.py
@@ -266,19 +274,19 @@ python eval_benchmark.py
 =================================================================
       docRag Retrieval Precision & Page Hit Benchmark
 =================================================================
-Q01: Expected Page 01 | Top-1: Page 1  | Hits: [1]       -> [PASS]
-Q02: Expected Page 02 | Top-1: Page 8  | Hits: [8, 2, 5] -> [PASS]
-Q03: Expected Page 03 | Top-1: Page 3  | Hits: [3, 8, 6] -> [PASS]
-Q04: Expected Page 04 | Top-1: Page 4  | Hits: [4, 6]    -> [PASS]
-Q05: Expected Page 05 | Top-1: Page 5  | Hits: [5, 3, 1] -> [PASS]
-Q06: Expected Page 06 | Top-1: Page 6  | Hits: [6, 3, 2] -> [PASS]
-Q07: Expected Page 07 | Top-1: Page 7  | Hits: [7, 9, 6] -> [PASS]
-Q08: Expected Page 08 | Top-1: Page 8  | Hits: [8, 6, 5] -> [PASS]
-Q09: Expected Page 09 | Top-1: Page 9  | Hits: [9, 3, 1] -> [PASS]
-Q10: Expected Page 10 | Top-1: Page 10 | Hits: [10, 1, 5]-> [PASS]
+Q01: Expected Page 01 | Top-1: Page 1  | Hits: [1]       -> [PASS (Top-1)]
+Q02: Expected Page 02 | Top-1: Page 8  | Hits: [8, 2, 5] -> [PASS (Recall@3)]
+Q03: Expected Page 03 | Top-1: Page 3  | Hits: [3, 8, 6] -> [PASS (Top-1)]
+Q04: Expected Page 04 | Top-1: Page 4  | Hits: [4, 6]    -> [PASS (Top-1)]
+Q05: Expected Page 05 | Top-1: Page 5  | Hits: [5, 3, 1] -> [PASS (Top-1)]
+Q06: Expected Page 06 | Top-1: Page 6  | Hits: [6, 3, 2] -> [PASS (Top-1)]
+Q07: Expected Page 07 | Top-1: Page 7  | Hits: [7, 9, 6] -> [PASS (Top-1)]
+Q08: Expected Page 08 | Top-1: Page 8  | Hits: [8, 6, 5] -> [PASS (Top-1)]
+Q09: Expected Page 09 | Top-1: Page 9  | Hits: [9, 3, 1] -> [PASS (Top-1)]
+Q10: Expected Page 10 | Top-1: Page 10 | Hits: [10, 1, 5]-> [PASS (Top-1)]
 -----------------------------------------------------------------
-Results: 10/10 Queries Retrieved Correct Page.
-Page Hit Rate (Recall@3): 100.0%
+Top-1 Precision: 9/10 (90.0%)
+Recall@3 (Passage Hit Rate): 10/10 (100.0%)
 =================================================================
 ```
 
@@ -309,42 +317,16 @@ OK
 
 ---
 
-## 🌐 Netlify Deployment Guide
+## 🚀 Permanent Cloud Deployment (Render & Hugging Face)
 
-### Deploying Frontend to Netlify:
-1. Go to [Netlify Drop](https://app.netlify.com/drop) or link your GitHub repo at [app.netlify.com](https://app.netlify.com).
-2. The included [`netlify.toml`](netlify.toml) configures `static/` as the publish directory automatically.
-3. Open the deployed Netlify URL.
-4. Click **Settings** (top right) in the docRag UI and enter your backend server URL (e.g. `http://localhost:8000` or a deployed FastAPI endpoint on Render/Railway).
-5. Paste your free Google AI Studio API key and start exploring documents!
+docRag can be deployed permanently to the cloud for free with zero sleep timeouts:
 
----
-
-## 🎤 Interview Cheatsheet: How to Explain docRag to Interviewers
-
-When discussing this project in a machine learning or full-stack software engineering interview, highlight these architectural decisions:
-
-1. **Why RAG instead of Fine-Tuning?**
-   - *Fine-tuning* teaches a model a new style or vocabulary, but cannot reliably recall exact page citations and is expensive to update.
-   - *RAG* injects ground-truth document excerpts directly into the context window at inference time, guaranteeing 100% factual accuracy, zero retraining cost, and verifiable source page citations.
-
-2. **Why In-Memory FAISS instead of Pinecone/Milvus?**
-   - For document-level Q&A (PDFs under 50 pages), hosting an external vector database introduces network latency, recurring monthly costs, and security risks.
-   - In-memory FAISS generates indexes in milliseconds on CPU, isolates indexes per user session, and leaves zero persistent trace on disk after the session ends.
-
-3. **How is Prompt Injection Defended?**
-   - User document text is treated as passive data by enclosing it inside `<untrusted_document_content>` tags.
-   - The system instructions explicitly order the LLM to ignore any meta-instructions or prompt jailbreaks found within the extracted PDF text.
-
-4. **How are Hallucinations Drastically Reduced?**
-   - Temperature is locked to `0.1` for maximum determinism.
-   - The model is instructed to cite only `[Source X]` numbers present in the retrieved passages.
-   - Python post-processing validates each citation ID against the chunk dictionary; fabricated source IDs are discarded in code.
-   - If retrieved relevance is insufficient, the system explicitly responds with *"The provided document does not contain enough information to answer this question"* rather than confabulating.
-
-5. **How is Quota Managed on Free Tier?**
-   - The pipeline implements an automatic multi-model fallback cascade (`gemini-3.8-flash` &rarr; `gemini-3.5-flash-lite`).
-   - Standalone questions bypass query reformulation to halve LLM API consumption.
+### Deploying on Render (Free Web Service):
+1. Create a free account at [render.com](https://render.com).
+2. Click **New +** &rarr; **Web Service** &rarr; Connect your GitHub repo `deepakpradhan1021/docRag`.
+3. Choose **Docker** as runtime environment.
+4. Set environment variable: `GOOGLE_API_KEY` (or let users supply their own in the UI Settings modal).
+5. Deploy! Render builds the included `Dockerfile` and gives you a permanent HTTPS URL like `https://docrag.onrender.com`.
 
 ---
 

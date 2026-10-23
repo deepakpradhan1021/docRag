@@ -55,8 +55,14 @@ class AttachedDocument:
 
 
 class ChatSession:
-    def __init__(self, title: str = "New Chat", session_id: Optional[str] = None):
+    def __init__(
+        self,
+        title: str = "New Chat",
+        session_id: Optional[str] = None,
+        owner_id: Optional[str] = "default_user",
+    ):
         self.session_id: str = session_id or str(uuid.uuid4())
+        self.owner_id: str = owner_id or "default_user"
         self.title: str = title
         self.created_at: str = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.updated_at: str = self.created_at
@@ -118,6 +124,7 @@ class ChatSession:
             meta_path = session_folder / "session.json"
             meta_data = {
                 "session_id": self.session_id,
+                "owner_id": self.owner_id,
                 "title": self.title,
                 "created_at": self.created_at,
                 "updated_at": self.updated_at,
@@ -170,7 +177,11 @@ class ChatSession:
             with open(meta_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            session = cls(title=data.get("title", "New Chat"), session_id=session_id)
+            session = cls(
+                title=data.get("title", "New Chat"),
+                session_id=session_id,
+                owner_id=data.get("owner_id", "default_user"),
+            )
             session.created_at = data.get("created_at", session.created_at)
             session.updated_at = data.get("updated_at", session.updated_at)
 
@@ -289,6 +300,7 @@ class ChatSession:
 
         return {
             "session_id": self.session_id,
+            "owner_id": self.owner_id,
             "title": self.title,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
@@ -339,48 +351,58 @@ class SessionManager:
         except Exception:
             pass
 
-    def create_session(self, title: str = "New Chat") -> ChatSession:
-        new_session = ChatSession(title=title)
+    def create_session(self, title: str = "New Chat", owner_id: str = "default_user") -> ChatSession:
+        new_session = ChatSession(title=title, owner_id=owner_id)
         self.sessions[new_session.session_id] = new_session
         self.active_session_id = new_session.session_id
         new_session.save_to_disk()
         return new_session
 
-    def get_session(self, session_id: str) -> Optional[ChatSession]:
-        if session_id in self.sessions:
-            return self.sessions[session_id]
-        # Attempt lazy load from disk if present
-        sess = ChatSession.load_from_disk(session_id)
-        if sess:
-            self.sessions[sess.session_id] = sess
-            return sess
-        return None
+    def get_session(self, session_id: str, owner_id: Optional[str] = None) -> Optional[ChatSession]:
+        session = self.sessions.get(session_id)
+        if not session:
+            session = ChatSession.load_from_disk(session_id)
+            if session:
+                self.sessions[session.session_id] = session
 
-    def delete_session(self, session_id: str) -> bool:
+        if session and owner_id and session.owner_id != owner_id:
+            return None
+        return session
+
+    def delete_session(self, session_id: str, owner_id: Optional[str] = None) -> bool:
+        session = self.get_session(session_id, owner_id=owner_id)
+        if not session:
+            return False
+
         if session_id in self.sessions:
             del self.sessions[session_id]
-            # Remove from disk
-            try:
-                import shutil
-                sess_dir = SESSIONS_DIR / session_id
-                if sess_dir.exists():
-                    shutil.rmtree(sess_dir, ignore_errors=True)
-            except Exception:
-                pass
+        
+        # Remove from disk
+        try:
+            import shutil
+            sess_dir = SESSIONS_DIR / session_id
+            if sess_dir.exists():
+                shutil.rmtree(sess_dir, ignore_errors=True)
+        except Exception:
+            pass
 
-            if self.active_session_id == session_id:
-                if self.sessions:
-                    self.active_session_id = next(iter(self.sessions))
-                else:
-                    new_session = self.create_session("New Chat")
-                    self.active_session_id = new_session.session_id
-            return True
-        return False
+        if self.active_session_id == session_id:
+            if self.sessions:
+                self.active_session_id = next(iter(self.sessions))
+            else:
+                new_session = self.create_session("New Chat", owner_id=owner_id or "default_user")
+                self.active_session_id = new_session.session_id
+        return True
 
-    def list_sessions(self) -> list[dict]:
+    def list_sessions(self, owner_id: Optional[str] = None) -> list[dict]:
+        user_sessions = [
+            s for s in self.sessions.values()
+            if owner_id is None or s.owner_id == owner_id
+        ]
         return [
             {
                 "session_id": s.session_id,
+                "owner_id": s.owner_id,
                 "title": s.title,
                 "updated_at": s.updated_at,
                 "documents_count": len(s.documents),
@@ -388,7 +410,7 @@ class SessionManager:
                 "is_active": s.session_id == self.active_session_id,
             }
             for s in sorted(
-                self.sessions.values(), key=lambda x: x.updated_at, reverse=True
+                user_sessions, key=lambda x: x.updated_at, reverse=True
             )
         ]
 

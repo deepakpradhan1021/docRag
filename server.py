@@ -26,6 +26,7 @@ from src.config import (
     LLM_MODEL_NAME,
     MAX_FILE_SIZE_MB,
     MAX_PAGES,
+    MAX_QUESTION_LENGTH,
     MAX_QUESTIONS_PER_SESSION,
     RETRIEVAL_TOP_K,
     get_gemini_api_key,
@@ -49,7 +50,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -66,7 +67,10 @@ _CLIENT_REQUEST_LOG: dict[str, list[float]] = defaultdict(list)
 async def rate_limiting_middleware(request: Request, call_next):
     # Only rate-limit API routes (/api/*), static files remain fast & unmetered
     if request.url.path.startswith("/api/"):
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = request.headers.get(
+            "x-forwarded-for",
+            request.client.host if request.client else "unknown"
+        ).split(",")[0].strip()
         now = time.time()
         window_start = now - RATE_LIMIT_WINDOW_SECONDS
 
@@ -92,6 +96,7 @@ async def rate_limiting_middleware(request: Request, call_next):
 # --- Request Models ---
 class CreateChatRequest(BaseModel):
     title: Optional[str] = "New Chat"
+    owner_id: Optional[str] = "default_user"
 
 
 class SendMessageRequest(BaseModel):
@@ -101,6 +106,11 @@ class SendMessageRequest(BaseModel):
 
 class RenameChatRequest(BaseModel):
     title: str
+
+
+def get_owner_id_from_request(request: Request) -> str:
+    """Extract browser owner ID from header or query param."""
+    return request.headers.get("x-owner-id") or request.query_params.get("owner_id") or "default_user"
 
 
 # --- API Routes ---
@@ -133,22 +143,25 @@ def get_configuration():
 
 
 @app.get("/api/chats")
-def list_chats():
-    """Return all active chat sessions."""
-    return session_manager.list_sessions()
+def list_chats(request: Request):
+    """Return active chat sessions belonging to the requesting browser/owner."""
+    owner_id = get_owner_id_from_request(request)
+    return session_manager.list_sessions(owner_id=owner_id)
 
 
 @app.post("/api/chats")
-def create_chat(payload: CreateChatRequest):
-    """Create a new chat session."""
-    session = session_manager.create_session(title=payload.title or "New Chat")
+def create_chat(payload: CreateChatRequest, request: Request):
+    """Create a new chat session owned by the requesting browser."""
+    owner_id = payload.owner_id or get_owner_id_from_request(request)
+    session = session_manager.create_session(title=payload.title or "New Chat", owner_id=owner_id)
     return session.to_dict()
 
 
 @app.get("/api/chats/{session_id}")
-def get_chat(session_id: str):
+def get_chat(session_id: str, request: Request):
     """Retrieve details and messages of a specific chat session."""
-    session = session_manager.get_session(session_id)
+    owner_id = get_owner_id_from_request(request)
+    session = session_manager.get_session(session_id, owner_id=owner_id)
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
     session_manager.active_session_id = session_id
@@ -156,36 +169,49 @@ def get_chat(session_id: str):
 
 
 @app.patch("/api/chats/{session_id}")
-def rename_chat(session_id: str, payload: RenameChatRequest):
+def rename_chat(session_id: str, payload: RenameChatRequest, request: Request):
     """Rename a chat session."""
-    session = session_manager.get_session(session_id)
+    owner_id = get_owner_id_from_request(request)
+    session = session_manager.get_session(session_id, owner_id=owner_id)
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
     session.title = payload.title.strip()[:35] or "Chat"
+    session.save_to_disk()
     return {"status": "success", "title": session.title}
 
 
 @app.delete("/api/chats/{session_id}")
-def delete_chat(session_id: str):
+def delete_chat(session_id: str, request: Request):
     """Delete a chat session."""
-    deleted = session_manager.delete_session(session_id)
+    owner_id = get_owner_id_from_request(request)
+    deleted = session_manager.delete_session(session_id, owner_id=owner_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Chat session not found")
     return {"status": "success", "active_session_id": session_manager.active_session_id}
 
 
 @app.post("/api/chats/{session_id}/upload")
-async def upload_documents(session_id: str, files: list[UploadFile] = File(...)):
+async def upload_documents(session_id: str, request: Request, files: list[UploadFile] = File(...)):
     """Upload one or multiple PDF documents into a chat session."""
-    session = session_manager.get_session(session_id)
+    owner_id = get_owner_id_from_request(request)
+    session = session_manager.get_session(session_id, owner_id=owner_id)
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
 
     results = []
     errors = []
+    max_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
 
     for file in files:
         try:
+            # Check file size metadata first if reported by client/FastAPI to reject early
+            if file.size and file.size > max_bytes:
+                size_mb = file.size / (1024 * 1024)
+                raise PDFSizeLimitError(
+                    f"File '{file.filename}' is {size_mb:.1f} MB, which exceeds "
+                    f"the maximum allowed size of {MAX_FILE_SIZE_MB} MB."
+                )
+
             content = await file.read()
             attached = session.add_pdf(content, file.filename)
             results.append({
@@ -216,9 +242,10 @@ async def upload_documents(session_id: str, files: list[UploadFile] = File(...))
 
 
 @app.post("/api/chats/{session_id}/message")
-def post_message(session_id: str, payload: SendMessageRequest):
+def post_message(session_id: str, payload: SendMessageRequest, request: Request):
     """Send a user question, retrieve grounded passages, and return citations."""
-    session = session_manager.get_session(session_id)
+    owner_id = get_owner_id_from_request(request)
+    session = session_manager.get_session(session_id, owner_id=owner_id)
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
 
@@ -231,6 +258,20 @@ def post_message(session_id: str, payload: SendMessageRequest):
     question = payload.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
+
+    if len(question) > MAX_QUESTION_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Question too long ({len(question)} chars). Maximum allowed is {MAX_QUESTION_LENGTH} characters."
+        )
+
+    # Check question limit per session
+    user_questions_count = sum(1 for m in session.messages if m.role == "user")
+    if user_questions_count >= MAX_QUESTIONS_PER_SESSION:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Session question limit reached ({MAX_QUESTIONS_PER_SESSION} questions). Please start a New Chat to continue."
+        )
 
     # Record user message in history
     session.add_message(role="user", content=question)
