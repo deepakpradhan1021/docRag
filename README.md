@@ -17,7 +17,8 @@
 
 ## 🌟 Live Demo & Links
 
-- **Live Public Web App (Active Session):** [https://1980afd7d8b1f8.lhr.life](https://1980afd7d8b1f8.lhr.life)
+- **Live Web Application (Netlify + Render 24/7):** [https://docrag-ai.netlify.app](https://docrag-ai.netlify.app)
+- **Permanent Cloud Backend (Render):** [https://docrag-3gb4.onrender.com](https://docrag-3gb4.onrender.com)
 - **GitHub Repository:** [https://github.com/deepakpradhan1021/docRag](https://github.com/deepakpradhan1021/docRag)
 
 ---
