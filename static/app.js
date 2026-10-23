@@ -4,11 +4,11 @@
  */
 
 // --- Dynamic API Base Resolution ---
-// If running from file:// or netlify.app without custom override, default to local server; otherwise use relative origin
+// If running from file:// or netlify.app without custom override, default to Render backend; otherwise use relative origin
 const isLocalFile = window.location.protocol === "file:";
 const isNetlify = window.location.hostname.includes("netlify.app");
 let customApiBase = localStorage.getItem("docRag_apiBase") || "";
-const API_BASE = customApiBase || ((isLocalFile || isNetlify) ? "http://localhost:8000" : "");
+const API_BASE = customApiBase || ((isLocalFile || isNetlify) ? "https://docrag-3gb4.onrender.com" : "");
 
 // --- State ---
 let currentSessionId = null;
