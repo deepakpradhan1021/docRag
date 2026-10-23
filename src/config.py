@@ -118,6 +118,12 @@ EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
 # 4 chunks × 1000 chars ≈ 4000 chars of context — well within limits.
 RETRIEVAL_TOP_K: int = 4
 
+# Maximum L2 distance threshold for vector relevance.
+# Normalized embeddings range from L2 distance 0.0 (identical) to 2.0 (orthogonal/opposite).
+# If all retrieved chunks have distance > 1.65 (unrelated topic / noise),
+# the question is considered off-topic and gets an immediate "not enough info" response.
+RELEVANCE_DISTANCE_THRESHOLD: float = 1.65
+
 # ---------------------------------------------------------------------------
 # Session & Usage Limits
 # ---------------------------------------------------------------------------

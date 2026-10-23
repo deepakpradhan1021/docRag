@@ -8,8 +8,10 @@ and document page inspection.
 
 from datetime import datetime
 import os
+import time
+from collections import defaultdict
 from typing import Optional
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -51,6 +53,40 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------------------------------------------------------------------
+# In-Memory Sliding-Window Rate Limiter (Protects backend from spam & DDoS)
+# ---------------------------------------------------------------------------
+RATE_LIMIT_WINDOW_SECONDS: int = 60
+RATE_LIMIT_MAX_REQUESTS: int = 40  # Max 40 API calls per minute per client IP
+_CLIENT_REQUEST_LOG: dict[str, list[float]] = defaultdict(list)
+
+
+@app.middleware("http")
+async def rate_limiting_middleware(request: Request, call_next):
+    # Only rate-limit API routes (/api/*), static files remain fast & unmetered
+    if request.url.path.startswith("/api/"):
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        window_start = now - RATE_LIMIT_WINDOW_SECONDS
+
+        # Purge timestamps outside sliding window
+        recent_timestamps = [t for t in _CLIENT_REQUEST_LOG[client_ip] if t > window_start]
+        _CLIENT_REQUEST_LOG[client_ip] = recent_timestamps
+
+        if len(recent_timestamps) >= RATE_LIMIT_MAX_REQUESTS:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "detail": f"Rate limit exceeded: Maximum {RATE_LIMIT_MAX_REQUESTS} requests per minute. Please try again shortly."
+                },
+            )
+
+        _CLIENT_REQUEST_LOG[client_ip].append(now)
+
+    response = await call_next(request)
+    return response
 
 
 # --- Request Models ---

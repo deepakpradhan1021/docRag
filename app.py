@@ -313,7 +313,7 @@ with col_head2:
 # Badges indicator row
 badge_cols = st.columns(4)
 with badge_cols[0]:
-    st.info("🧠 **Model:** Gemini 2.0 Flash", icon="🤖")
+    st.info(f"🧠 **Model:** {LLM_MODEL_NAME}", icon="🤖")
 with badge_cols[1]:
     st.info("⚡ **Embeddings:** Local CPU (MiniLM)", icon="💻")
 with badge_cols[2]:
@@ -359,8 +359,8 @@ if st.session_state.vector_store is None:
     st.markdown("### 💡 Why Grounded RAG with docRag?")
     feat_col1, feat_col2, feat_col3 = st.columns(3)
     with feat_col1:
-        st.markdown("##### 🎯 Zero Hallucinations")
-        st.write("Strict system prompts prevent external guesswork. If the document doesn't mention something, docRag explicitly tells you.")
+        st.markdown("##### 🎯 Drastically Reduces Hallucinations")
+        st.write("Strict system prompts and context grounding restrain external guesswork. If the document doesn't mention something, docRag explicitly tells you.")
     with feat_col2:
         st.markdown("##### 📄 Exact Page Tracking")
         st.write("Citations link directly to the human-readable 1-indexed document page number, not arbitrary chunk numbers.")

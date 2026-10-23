@@ -1,0 +1,12 @@
+services:
+  docrag:
+    build: .
+    container_name: docrag_app
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - LLM_MODEL_NAME=gemini-3.8-flash
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
