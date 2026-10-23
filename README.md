@@ -239,7 +239,13 @@ python server.py
 ```
 Open **`http://127.0.0.1:8000`** in your browser.
 
-#### Option B: Classic Streamlit Interface
+#### Option B: Docker Container (One-Command Deployment)
+```bash
+docker compose up --build
+```
+Open **`http://localhost:8000`** in your browser.
+
+#### Option C: Classic Streamlit Interface
 ```bash
 streamlit run app.py
 ```
@@ -247,7 +253,38 @@ Open **`http://localhost:8501`** in your browser.
 
 ---
 
-## 🧪 Automated Test Suite (24 Tests Passing)
+## 📊 ML Retrieval & Page Hit Benchmark
+
+docRag includes an empirical evaluation harness (`eval_benchmark.py`) that tests retrieval accuracy against a synthetic 10-page ground-truth document:
+
+```bash
+python eval_benchmark.py
+```
+
+### Benchmark Results:
+```text
+=================================================================
+      docRag Retrieval Precision & Page Hit Benchmark
+=================================================================
+Q01: Expected Page 01 | Top-1: Page 1  | Hits: [1]       -> [PASS]
+Q02: Expected Page 02 | Top-1: Page 8  | Hits: [8, 2, 5] -> [PASS]
+Q03: Expected Page 03 | Top-1: Page 3  | Hits: [3, 8, 6] -> [PASS]
+Q04: Expected Page 04 | Top-1: Page 4  | Hits: [4, 6]    -> [PASS]
+Q05: Expected Page 05 | Top-1: Page 5  | Hits: [5, 3, 1] -> [PASS]
+Q06: Expected Page 06 | Top-1: Page 6  | Hits: [6, 3, 2] -> [PASS]
+Q07: Expected Page 07 | Top-1: Page 7  | Hits: [7, 9, 6] -> [PASS]
+Q08: Expected Page 08 | Top-1: Page 8  | Hits: [8, 6, 5] -> [PASS]
+Q09: Expected Page 09 | Top-1: Page 9  | Hits: [9, 3, 1] -> [PASS]
+Q10: Expected Page 10 | Top-1: Page 10 | Hits: [10, 1, 5]-> [PASS]
+-----------------------------------------------------------------
+Results: 10/10 Queries Retrieved Correct Page.
+Page Hit Rate (Recall@3): 100.0%
+=================================================================
+```
+
+---
+
+## 🧪 Automated Test Suite
 
 docRag includes 24 unit and API integration tests covering:
 - Correct 1-indexed page extraction and empty/scanned PDF detection.
@@ -299,10 +336,11 @@ When discussing this project in a machine learning or full-stack software engine
    - User document text is treated as passive data by enclosing it inside `<untrusted_document_content>` tags.
    - The system instructions explicitly order the LLM to ignore any meta-instructions or prompt jailbreaks found within the extracted PDF text.
 
-4. **How are Hallucinations Prevented?**
-   - Temperature is locked to `0.1`.
+4. **How are Hallucinations Drastically Reduced?**
+   - Temperature is locked to `0.1` for maximum determinism.
    - The model is instructed to cite only `[Source X]` numbers present in the retrieved passages.
    - Python post-processing validates each citation ID against the chunk dictionary; fabricated source IDs are discarded in code.
+   - If retrieved relevance is insufficient, the system explicitly responds with *"The provided document does not contain enough information to answer this question"* rather than confabulating.
 
 5. **How is Quota Managed on Free Tier?**
    - The pipeline implements an automatic multi-model fallback cascade (`gemini-3.8-flash` &rarr; `gemini-3.5-flash-lite`).

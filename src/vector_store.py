@@ -15,6 +15,7 @@ from src.config import (
     CHUNK_SIZE,
     CHUNK_OVERLAP,
     EMBEDDING_MODEL_NAME,
+    RELEVANCE_DISTANCE_THRESHOLD,
     RETRIEVAL_TOP_K,
 )
 
@@ -115,9 +116,11 @@ def retrieve_relevant_chunks(
     vector_store: FAISS,
     query: str,
     top_k: int = RETRIEVAL_TOP_K,
+    score_threshold: Optional[float] = RELEVANCE_DISTANCE_THRESHOLD,
 ) -> list[Document]:
     """
     Perform similarity search on the FAISS vector store for a given question.
+    Filters out chunks whose L2 distance exceeds score_threshold (i.e. low relevance).
 
     Returns:
         Top-k most relevant Document chunks, each carrying metadata with
@@ -126,6 +129,15 @@ def retrieve_relevant_chunks(
     if not query or not query.strip():
         return []
 
-    # Use similarity_search to retrieve top_k documents
-    results = vector_store.similarity_search(query.strip(), k=top_k)
-    return results
+    if score_threshold is None:
+        return vector_store.similarity_search(query.strip(), k=top_k)
+
+    # Perform search with L2 distance score
+    results_with_scores = vector_store.similarity_search_with_score(query.strip(), k=top_k)
+
+    filtered_docs: list[Document] = []
+    for doc, distance in results_with_scores:
+        if distance <= score_threshold:
+            filtered_docs.append(doc)
+
+    return filtered_docs

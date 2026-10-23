@@ -22,6 +22,7 @@ env/
 # Uploaded documents and generated indexes — user data stays local
 uploads/
 indexes/
+data/
 *.pdf
 
 # IDE
