@@ -15,6 +15,7 @@ let currentSessionId = null;
 let currentChatData = null;
 let userApiKey = localStorage.getItem("docRag_apiKey") || "";
 let isServerOnline = false;
+let isHealthChecking = false;
 
 // Per-browser persistent unique owner ID to isolate chat histories across visitors
 let browserOwnerId = localStorage.getItem("docRag_ownerId");
@@ -72,8 +73,16 @@ async function initApp() {
 
 // --- Server Connection Health Check ---
 async function checkServerHealth() {
+  if (isHealthChecking) return;
+  isHealthChecking = true;
   try {
-    const res = await fetch(`${API_BASE}/api/health`, { method: "GET" });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const res = await fetch(`${API_BASE}/api/health`, {
+      method: "GET",
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
     if (res.ok) {
       isServerOnline = true;
       removeOfflineBanner();
@@ -84,6 +93,8 @@ async function checkServerHealth() {
   } catch (err) {
     isServerOnline = false;
     showOfflineBanner();
+  } finally {
+    isHealthChecking = false;
   }
 }
 
@@ -93,7 +104,7 @@ function showOfflineBanner() {
     banner = document.createElement("div");
     banner.id = "offlineBanner";
     banner.style.cssText = `
-      background: linear-gradient(90deg, #ef4444 0%, #b91c1c 100%);
+      background: linear-gradient(90deg, #ea580c 0%, #c2410c 100%);
       color: white;
       padding: 10px 20px;
       font-size: 13px;
@@ -101,23 +112,31 @@ function showOfflineBanner() {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
       z-index: 1000;
+      position: sticky;
+      top: 0;
     `;
     banner.innerHTML = `
-      <span>⚠️ Python backend server is offline. Please run <code>python server.py</code> in your project directory.</span>
-      <button id="retryConnBtn" style="background: white; color: #b91c1c; border: none; padding: 4px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;">Retry Connection</button>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #fef08a;"></span>
+        <span>Render Free Tier is waking up (~30-45s cold start)... Please wait a moment.</span>
+      </div>
+      <button id="retryConnBtn" style="background: white; color: #c2410c; border: none; padding: 4px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;">Check Again</button>
     `;
     document.body.prepend(banner);
 
     document.getElementById("retryConnBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("retryConnBtn");
+      btn.innerText = "Checking...";
       await checkServerHealth();
       if (isServerOnline) {
         showToast("Connected to docRag backend!", "success");
         await loadChatList();
       } else {
-        showToast("Still offline. Make sure 'python server.py' is running.", "error");
+        showToast("Still waking up... Please wait a few seconds.", "info");
       }
+      btn.innerText = "Check Again";
     });
   }
 }
@@ -597,6 +616,9 @@ async function handleFilesUpload(files) {
     uploadStatusText.innerText = "Indexing PDF(s) with local embeddings... Please wait...";
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
   try {
     const res = await fetch(`${API_BASE}/api/chats/${currentSessionId}/upload`, {
       method: "POST",
@@ -604,7 +626,9 @@ async function handleFilesUpload(files) {
         "x-owner-id": browserOwnerId,
       },
       body: formData,
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     const result = await res.json();
     if (res.ok) {
@@ -625,10 +649,14 @@ async function handleFilesUpload(files) {
       showToast(result.detail || "Upload failed", "error");
     }
   } catch (err) {
+    clearTimeout(timeoutId);
+    const msg = err.name === "AbortError" 
+      ? "Upload timed out (60s). If the free tier container was sleeping, please retry."
+      : "Failed to upload: Cannot reach server.";
     if (uploadStatusText) {
-      uploadStatusText.innerText = "Failed to upload: Cannot reach server.";
+      uploadStatusText.innerText = msg;
     }
-    showToast("Server offline. Make sure 'python server.py' is running.", "error");
+    showToast(msg, "error");
   }
 }
 
