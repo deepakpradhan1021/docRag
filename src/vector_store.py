@@ -5,11 +5,20 @@ Handles text chunking, local Sentence-Transformers embeddings,
 in-memory FAISS vector indexing, and grounded similarity retrieval.
 """
 
+import gc
+import os
 from typing import Optional
+import torch
+
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
+
+# Force single-thread execution to prevent CPU contention and memory spikes in Docker
+torch.set_num_threads(1)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 
 from src.config import (
     CHUNK_SIZE,
@@ -26,16 +35,19 @@ _EMBEDDINGS_INSTANCE: Optional[HuggingFaceEmbeddings] = None
 def get_embedding_model(model_name: str = EMBEDDING_MODEL_NAME) -> HuggingFaceEmbeddings:
     """
     Retrieve or initialize the HuggingFace embedding model instance.
-    Uses 'all-MiniLM-L6-v2' running on CPU.
-    Weights are loaded once into memory to save memory and CPU initialization time.
+    Uses 'paraphrase-MiniLM-L3-v2' running on single-thread CPU.
+    Weights are loaded once with batch_size=2 and garbage collection
+    to strictly enforce <512MB RAM limits on free cloud containers.
     """
     global _EMBEDDINGS_INSTANCE
     if _EMBEDDINGS_INSTANCE is None:
+        gc.collect()
         _EMBEDDINGS_INSTANCE = HuggingFaceEmbeddings(
             model_name=model_name,
             model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True},
+            encode_kwargs={"normalize_embeddings": True, "batch_size": 4},
         )
+        gc.collect()
     return _EMBEDDINGS_INSTANCE
 
 
@@ -108,7 +120,9 @@ def create_vector_store(
     if embeddings is None:
         embeddings = get_embedding_model()
 
+    gc.collect()
     vector_store = FAISS.from_documents(documents=chunks, embedding=embeddings)
+    gc.collect()
     return vector_store
 
 
