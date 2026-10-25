@@ -59,14 +59,16 @@ app.add_middleware(
 # In-Memory Sliding-Window Rate Limiter (Protects backend from spam & DDoS)
 # ---------------------------------------------------------------------------
 RATE_LIMIT_WINDOW_SECONDS: int = 60
-RATE_LIMIT_MAX_REQUESTS: int = 40  # Max 40 API calls per minute per client IP
+RATE_LIMIT_MAX_REQUESTS: int = 120  # Max 120 API calls per minute per client IP
 _CLIENT_REQUEST_LOG: dict[str, list[float]] = defaultdict(list)
 
 
 @app.middleware("http")
 async def rate_limiting_middleware(request: Request, call_next):
-    # Only rate-limit API routes (/api/*), static files remain fast & unmetered
-    if request.url.path.startswith("/api/"):
+    # Only rate-limit resource-intensive chat or upload endpoints
+    # Health checks, config, docs, and static files remain unmetered
+    path = request.url.path
+    if path.startswith("/api/chats") and (request.method in ("POST", "PUT", "PATCH")):
         client_ip = request.headers.get(
             "x-forwarded-for",
             request.client.host if request.client else "unknown"
@@ -119,6 +121,7 @@ def get_owner_id_from_request(request: Request) -> str:
 def health_check():
     return {
         "status": "healthy",
+        "ready": True,
         "app": APP_NAME,
         "model": LLM_MODEL_NAME,
         "timestamp": datetime.now().isoformat(),
@@ -332,9 +335,10 @@ def post_message(session_id: str, payload: SendMessageRequest, request: Request)
 
 
 @app.get("/api/chats/{session_id}/export")
-def export_chat(session_id: str, format: str = "markdown"):
+def export_chat(session_id: str, request: Request, format: str = "markdown"):
     """Export conversation transcript as Markdown or JSON."""
-    session = session_manager.get_session(session_id)
+    owner_id = get_owner_id_from_request(request)
+    session = session_manager.get_session(session_id, owner_id=owner_id)
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
 
