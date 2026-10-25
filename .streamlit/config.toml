@@ -7,3 +7,11 @@ showErrorDetails = true
 
 [browser]
 gatherUsageStats = false
+
+[theme]
+primaryColor = "#a855f7"
+backgroundColor = "#070b12"
+secondaryBackgroundColor = "#0f172a"
+textColor = "#f8fafc"
+font = "sans serif"
+
