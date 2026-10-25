@@ -912,16 +912,89 @@ body {
   gap: 6px;
 }
 
-/* Responsive */
+/* Responsive & Mobile Polishing (Ultra-fluid, touch-friendly, zero lag) */
 @media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+    overflow: hidden;
+  }
+
   .sidebar {
-    position: absolute;
-    left: -280px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 999;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.7);
   }
-  .sidebar.open {
-    transform: translateX(280px);
+
+  .sidebar.open,
+  .sidebar:not(.collapsed) {
+    transform: translateX(0);
   }
+
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+  }
+
+  .main-canvas {
+    width: 100%;
+    height: 100vh;
+  }
+
+  .top-nav {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .hero-title {
+    font-size: 22px;
+    padding: 0 10px;
+  }
+
+  .hero-subtitle {
+    font-size: 13px;
+    padding: 0 12px;
+  }
+
+  .chip-row {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 10px;
+  }
+
+  .chip-btn {
+    font-size: 11.5px;
+    padding: 6px 12px;
+  }
+
   .feature-cards-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 0 12px;
+  }
+
+  .feature-card {
+    padding: 14px;
+  }
+
+  .input-floating-container {
+    padding: 10px 14px 14px 14px;
+    margin: 0 10px 12px 10px;
+  }
+
+  .chat-textarea {
+    font-size: 14px;
+  }
+
+  .modal-dialog {
+    width: 92%;
+    max-width: 92%;
+    margin: 20px auto;
+    padding: 18px;
   }
 }
