@@ -8,7 +8,7 @@
 [![FAISS](https://img.shields.io/badge/FAISS-CPU%20Vector%20Store-green.svg)](https://github.com/facebookresearch/faiss)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-![docRag Banner](static/docrag_banner.png)
+![docRag Live Application UI](static/docrag_live_preview.png)
 
 > **A 100% zero-cost Document Intelligence & Retrieval-Augmented Generation (RAG) platform.**  
 > Upload PDFs, cross-reference multiple documents in isolated sessions, and receive accurate answers with exact 1-indexed page citations and quoted excerpts — featuring prompt injection defense, browser-isolated chats, sliding-window rate limiting, and multi-model quota fallback.
@@ -17,9 +17,8 @@
 
 ## 🌟 Live Demo & Deployment
 
-- **Live Web Application:** [https://docrag-ai.netlify.app](https://docrag-ai.netlify.app)
-- **Cloud Backend API:** [https://docrag-3gb4.onrender.com](https://docrag-3gb4.onrender.com)
-- **Interactive API Docs (Swagger):** [https://docrag-3gb4.onrender.com/docs](https://docrag-3gb4.onrender.com/docs)
+- **Live Production App (Render 24/7):** [https://docrag-3gb4.onrender.com](https://docrag-3gb4.onrender.com)
+- **Interactive API Documentation (Swagger):** [https://docrag-3gb4.onrender.com/docs](https://docrag-3gb4.onrender.com/docs)
 - **GitHub Repository:** [https://github.com/deepakpradhan1021/docRag](https://github.com/deepakpradhan1021/docRag)
 
 > **Note on Free-Tier Cold Starts:**  
