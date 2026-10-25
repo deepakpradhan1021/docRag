@@ -25,7 +25,6 @@ from src.pdf_processing import (
 from src.rag_pipeline import Citation, RAGResponse, answer_question
 from src.vector_store import (
     create_vector_store,
-    get_embedding_model,
     split_documents_into_chunks,
 )
 
@@ -226,20 +225,8 @@ class ChatSession:
 
             session.all_chunks = restored_chunks
 
-            # Restore FAISS index if present
-            faiss_dir = session_folder / "faiss_index"
-            if faiss_dir.exists():
-                try:
-                    from langchain_community.vectorstores import FAISS
-                    session.vector_store = FAISS.load_local(
-                        str(faiss_dir),
-                        get_embedding_model(),
-                        allow_dangerous_deserialization=True,
-                    )
-                except Exception:
-                    if session.all_chunks:
-                        session.vector_store = create_vector_store(session.all_chunks)
-            elif session.all_chunks:
+            # 2. Re-index vector store in memory if chunks exist
+            if session.all_chunks:
                 session.vector_store = create_vector_store(session.all_chunks)
 
             return session
