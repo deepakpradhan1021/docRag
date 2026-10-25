@@ -1,10 +1,9 @@
 /**
  * docRag Client Application
- * Pure Vanilla JavaScript — clean, responsive, robust, and easy to explain in any interview.
+ * Pure Vanilla JavaScript — clean, responsive, robust, and accessible.
  */
 
 // --- Dynamic API Base Resolution ---
-// If running from file:// or netlify.app without custom override, default to Render backend; otherwise use relative origin
 const isLocalFile = window.location.protocol === "file:";
 const isNetlify = window.location.hostname.includes("netlify.app");
 let customApiBase = localStorage.getItem("docRag_apiBase") || "";
@@ -13,9 +12,12 @@ const API_BASE = customApiBase || ((isLocalFile || isNetlify) ? "https://docrag-
 // --- State ---
 let currentSessionId = null;
 let currentChatData = null;
-let userApiKey = localStorage.getItem("docRag_apiKey") || "";
+let userApiKey = sessionStorage.getItem("docRag_apiKey") || ""; // In-memory session persistence
 let isServerOnline = false;
 let isHealthChecking = false;
+let isSending = false;
+let isUploading = false;
+let activeChatSwitchRequestId = 0;
 
 // Per-browser persistent unique owner ID to isolate chat histories across visitors
 let browserOwnerId = localStorage.getItem("docRag_ownerId");
@@ -37,6 +39,9 @@ const messagesList = document.getElementById("messagesList");
 const chatTextarea = document.getElementById("chatTextarea");
 const sendBtn = document.getElementById("sendBtn");
 const activeDocsBar = document.getElementById("activeDocsBar");
+const backendStatusPill = document.getElementById("backendStatusPill");
+const currentModelLabel = document.getElementById("currentModelLabel");
+const backendConnectionNote = document.getElementById("backendConnectionNote");
 
 // Modals
 const uploadModal = document.getElementById("uploadModal");
@@ -62,13 +67,32 @@ const apiBaseInput = document.getElementById("apiBaseInput");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 const exportBtn = document.getElementById("exportBtn");
 
+// Track modal trigger element for focus restoration
+let lastFocusedElement = null;
+
 // --- Initialization ---
 async function initApp() {
   setupEventListeners();
   if (userApiKey && apiKeyInput) apiKeyInput.value = userApiKey;
   if (customApiBase && apiBaseInput) apiBaseInput.value = customApiBase;
+
+  updateConnectionStatusUI("Connecting...");
   await checkServerHealth();
+  await loadServerConfig();
   await loadChatList();
+}
+
+// --- Live Status UI Helpers ---
+function updateConnectionStatusUI(statusText, isReady = false) {
+  if (backendStatusPill) {
+    backendStatusPill.innerText = statusText;
+    backendStatusPill.style.background = isReady ? "rgba(34, 197, 94, 0.2)" : "rgba(234, 88, 12, 0.2)";
+    backendStatusPill.style.color = isReady ? "#4ade80" : "#fb923c";
+    backendStatusPill.style.borderColor = isReady ? "rgba(74, 222, 128, 0.4)" : "rgba(251, 146, 60, 0.4)";
+  }
+  if (backendConnectionNote) {
+    backendConnectionNote.innerText = `Status: ${statusText}`;
+  }
 }
 
 // --- Server Connection Health Check ---
@@ -86,15 +110,33 @@ async function checkServerHealth() {
     if (res.ok) {
       isServerOnline = true;
       removeOfflineBanner();
+      updateConnectionStatusUI("Ready", true);
     } else {
       isServerOnline = false;
       showOfflineBanner();
+      updateConnectionStatusUI("Waking up...");
     }
   } catch (err) {
     isServerOnline = false;
     showOfflineBanner();
+    updateConnectionStatusUI("Waking up...");
   } finally {
     isHealthChecking = false;
+  }
+}
+
+async function loadServerConfig() {
+  if (!isServerOnline) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/config`);
+    if (res.ok) {
+      const data = await res.json();
+      if (currentModelLabel && data.model_name) {
+        currentModelLabel.innerText = `${data.model_name} (Grounded)`;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not load backend config:", err);
   }
 }
 
@@ -120,7 +162,7 @@ function showOfflineBanner() {
     banner.innerHTML = `
       <div style="display: flex; align-items: center; gap: 10px;">
         <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #fef08a;"></span>
-        <span>Render Free Tier is waking up (~30-45s cold start)... Please wait a moment.</span>
+        <span>The document service is waking up (~30-45s cold start)... Please wait a moment.</span>
       </div>
       <button id="retryConnBtn" style="background: white; color: #c2410c; border: none; padding: 4px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;">Check Again</button>
     `;
@@ -131,10 +173,11 @@ function showOfflineBanner() {
       btn.innerText = "Checking...";
       await checkServerHealth();
       if (isServerOnline) {
-        showToast("Connected to docRag backend!", "success");
+        showToast("Connected to document intelligence backend!", "success");
+        await loadServerConfig();
         await loadChatList();
       } else {
-        showToast("Still waking up... Please wait a few seconds.", "info");
+        showToast("Service is still waking up... Please wait a few seconds and retry.", "info");
       }
       btn.innerText = "Check Again";
     });
@@ -151,10 +194,10 @@ function showToast(message, type = "info") {
   let toast = document.createElement("div");
   toast.style.cssText = `
     position: fixed;
-    top: 24px;
+    bottom: 24px;
     right: 24px;
-    background: ${type === "error" ? "#dc2626" : type === "success" ? "#16a34a" : "#1e1b4b"};
-    border: 1px solid ${type === "error" ? "#ef4444" : type === "success" ? "#22c55e" : "#818cf8"};
+    background: ${type === "error" ? "rgba(239, 68, 68, 0.95)" : type === "success" ? "rgba(34, 197, 94, 0.95)" : "rgba(30, 41, 59, 0.95)"};
+    border: 1px solid ${type === "error" ? "#f87171" : type === "success" ? "#4ade80" : "rgba(255,255,255,0.2)"};
     color: white;
     padding: 12px 18px;
     border-radius: 12px;
@@ -171,6 +214,23 @@ function showToast(message, type = "info") {
     toast.style.transition = "opacity 0.3s";
     setTimeout(() => toast.remove(), 300);
   }, 3500);
+}
+
+// --- Accessible Dialog Functions ---
+function openModal(modal) {
+  if (!modal) return;
+  lastFocusedElement = document.activeElement;
+  modal.classList.add("active");
+  const focusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (focusable) focusable.focus();
+}
+
+function closeModal(modal) {
+  if (!modal) return;
+  modal.classList.remove("active");
+  if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+    lastFocusedElement.focus();
+  }
 }
 
 // --- Event Listeners Setup ---
@@ -203,7 +263,7 @@ function setupEventListeners() {
     chatTextarea.addEventListener("input", () => {
       chatTextarea.style.height = "auto";
       chatTextarea.style.height = `${Math.min(chatTextarea.scrollHeight, 120)}px`;
-      if (sendBtn) sendBtn.disabled = !chatTextarea.value.trim();
+      updateSendButtonState();
     });
   }
 
@@ -213,7 +273,7 @@ function setupEventListeners() {
       const prompt = btn.getAttribute("data-prompt");
       if (chatTextarea) {
         chatTextarea.value = prompt;
-        if (sendBtn) sendBtn.disabled = false;
+        updateSendButtonState();
         handleSendMessage();
       }
     });
@@ -248,14 +308,18 @@ function setupEventListeners() {
     saveSettingsBtn.addEventListener("click", () => {
       userApiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
       if (userApiKey) {
-        localStorage.setItem("docRag_apiKey", userApiKey);
+        sessionStorage.setItem("docRag_apiKey", userApiKey);
       } else {
-        localStorage.removeItem("docRag_apiKey");
+        sessionStorage.removeItem("docRag_apiKey");
       }
 
       if (apiBaseInput) {
         const newApiBase = apiBaseInput.value.trim().replace(/\/+$/, "");
         if (newApiBase) {
+          if (!newApiBase.startsWith("https://") && !newApiBase.startsWith("http://localhost") && !newApiBase.startsWith("http://127.0.0.1")) {
+            showToast("Backend URL must use HTTPS for remote hosts.", "error");
+            return;
+          }
           localStorage.setItem("docRag_apiBase", newApiBase);
         } else {
           localStorage.removeItem("docRag_apiBase");
@@ -316,11 +380,10 @@ function setupEventListeners() {
   }
 }
 
-function openModal(modal) {
-  if (modal) modal.classList.add("active");
-}
-function closeModal(modal) {
-  if (modal) modal.classList.remove("active");
+function updateSendButtonState() {
+  if (!sendBtn) return;
+  const hasText = chatTextarea && chatTextarea.value.trim().length > 0;
+  sendBtn.disabled = !hasText || isSending;
 }
 
 // --- API Calls ---
@@ -349,19 +412,43 @@ async function loadChatList() {
   }
 }
 
+// Safe DOM construction preventing HTML injection in title attributes
 function renderChatList(sessions) {
   if (!chatListContainer) return;
   chatListContainer.innerHTML = "";
   sessions.forEach((s) => {
     const item = document.createElement("div");
     item.className = `chat-item ${s.session_id === currentSessionId ? "active" : ""}`;
-    item.innerHTML = `
-      <div class="chat-item-left">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-        <span title="${s.title}">${escapeHtml(s.title)}</span>
-      </div>
-      <button class="chat-delete-btn" title="Delete chat" onclick="event.stopPropagation(); deleteChat('${s.session_id}')">&times;</button>
-    `;
+
+    const left = document.createElement("div");
+    left.className = "chat-item-left";
+
+    const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svgIcon.setAttribute("viewBox", "0 0 24 24");
+    svgIcon.setAttribute("fill", "none");
+    svgIcon.setAttribute("stroke", "currentColor");
+    svgIcon.setAttribute("stroke-width", "2");
+    svgIcon.innerHTML = '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>';
+
+    const titleSpan = document.createElement("span");
+    titleSpan.title = String(s.title || "Chat");
+    titleSpan.textContent = String(s.title || "Chat");
+
+    left.appendChild(svgIcon);
+    left.appendChild(titleSpan);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "chat-delete-btn";
+    deleteBtn.title = "Delete chat";
+    deleteBtn.setAttribute("aria-label", `Delete chat ${s.title}`);
+    deleteBtn.innerHTML = "&times;";
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteChat(s.session_id);
+    });
+
+    item.appendChild(left);
+    item.appendChild(deleteBtn);
     item.addEventListener("click", () => switchChat(s.session_id));
     chatListContainer.appendChild(item);
   });
@@ -385,23 +472,32 @@ async function createNewChat() {
     renderCurrentChat();
     showToast("Started new chat session", "info");
   } catch (err) {
-    showToast("Backend offline. Start server: python server.py", "error");
+    showToast("The document service is temporarily unavailable. Please retry shortly.", "error");
   }
 }
 
+// Race-condition guarded chat switching
 async function switchChat(sessionId) {
+  const switchRequestId = ++activeChatSwitchRequestId;
   currentSessionId = sessionId;
+
   try {
     const res = await fetch(`${API_BASE}/api/chats/${sessionId}`, {
       headers: { "x-owner-id": browserOwnerId },
     });
     if (!res.ok) throw new Error("Failed to load session");
-    currentChatData = await res.json();
+    const chatData = await res.json();
+
+    // Discard stale responses if user switched chats again while request was in-flight
+    if (switchRequestId !== activeChatSwitchRequestId) return;
+
+    currentChatData = chatData;
     renderCurrentChat();
+
     // Update active highlight in sidebar
     document.querySelectorAll(".chat-item").forEach((el) => el.classList.remove("active"));
     const activeItem = [...chatListContainer.children].find((el) =>
-      el.innerHTML.includes(sessionId)
+      el.textContent.includes(chatData.title)
     );
     if (activeItem) activeItem.classList.add("active");
   } catch (err) {
@@ -409,17 +505,21 @@ async function switchChat(sessionId) {
   }
 }
 
+// Explicit status code check on chat deletion
 async function deleteChat(sessionId) {
   if (!confirm("Are you sure you want to delete this chat session?")) return;
   try {
-    await fetch(`${API_BASE}/api/chats/${sessionId}`, {
+    const res = await fetch(`${API_BASE}/api/chats/${sessionId}`, {
       method: "DELETE",
       headers: { "x-owner-id": browserOwnerId },
     });
+    if (!res.ok) {
+      throw new Error("Server rejected deletion");
+    }
     showToast("Chat deleted", "info");
     await loadChatList();
   } catch (err) {
-    showToast("Failed to delete chat", "error");
+    showToast("Could not delete chat session.", "error");
   }
 }
 
@@ -444,7 +544,7 @@ function renderCurrentChat() {
         docDiv.className = "doc-pill";
         docDiv.innerHTML = `
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-          <span title="${doc.file_name}">${escapeHtml(doc.file_name)} (${doc.total_pages}p)</span>
+          <span title="${escapeHtml(doc.file_name)}">${escapeHtml(doc.file_name)} (${doc.total_pages}p)</span>
         `;
         sidebarDocList.appendChild(docDiv);
       }
@@ -485,15 +585,15 @@ function renderMessageRow(msg) {
       <div class="citations-container">
         <div class="citations-header">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-          Verified Source Citations (${msg.citations.length})
+          Source References (${msg.citations.length})
         </div>
         ${msg.citations
           .map(
             (c) => `
-          <div class="citation-card">
+          <div class="citation-card" style="cursor: pointer;" onclick="inspectSpecificPage('${escapeHtml(c.document_name)}', ${parseInt(c.page_number) || 1})" title="Click to view this page in the Inspector">
             <div class="citation-meta">
-              <span class="citation-badge">[Source ${c.source_index}]</span>
-              <span>📄 Page ${c.page_number}</span>
+              <span class="citation-badge">[Source ${parseInt(c.source_index) || 1}]</span>
+              <span>📄 Page ${parseInt(c.page_number) || 1}</span>
               <span style="color: var(--text-dim); font-size: 11px;">(${escapeHtml(c.document_name)})</span>
             </div>
             <div class="citation-quote">"${escapeHtml(c.excerpt)}"</div>
@@ -515,7 +615,7 @@ function renderMessageRow(msg) {
   } else {
     row.innerHTML = `
       <div class="avatar ai-avatar">
-        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
       </div>
       <div class="message-bubble">
         <div>${formatMarkdownBasic(msg.content)}</div>
@@ -527,8 +627,22 @@ function renderMessageRow(msg) {
   messagesList.appendChild(row);
 }
 
-// --- Sending Messages ---
+// Interactive helper: Clicking a citation card opens the page inspector directly
+window.inspectSpecificPage = function (docName, pageNum) {
+  openInspector();
+  if (inspectDocSelect && docName) {
+    inspectDocSelect.value = docName;
+    updateInspectorPages();
+  }
+  if (inspectPageSelect && pageNum) {
+    inspectPageSelect.value = pageNum;
+    updateInspectorText();
+  }
+};
+
+// --- Sending Messages (With in-flight guard & session-race prevention) ---
 async function handleSendMessage() {
+  if (isSending) return;
   if (!chatTextarea) return;
   const text = chatTextarea.value.trim();
   if (!text) return;
@@ -543,10 +657,13 @@ async function handleSendMessage() {
     return;
   }
 
+  const targetSessionId = currentSessionId;
+  isSending = true;
+  updateSendButtonState();
+
   // Clear input
   chatTextarea.value = "";
   chatTextarea.style.height = "auto";
-  if (sendBtn) sendBtn.disabled = true;
 
   // Optimistically show user message
   if (heroCenter) heroCenter.style.display = "none";
@@ -560,14 +677,14 @@ async function handleSendMessage() {
   loadingRow.innerHTML = `
     <div class="avatar ai-avatar">✦</div>
     <div class="message-bubble" style="display: flex; align-items: center; gap: 8px;">
-      <span style="font-size: 13px; color: var(--accent-purple);">Searching FAISS index and generating grounded answer...</span>
+      <span style="font-size: 13px; color: var(--accent-purple);">Retrieving passages and generating answer...</span>
     </div>
   `;
   if (messagesList) messagesList.appendChild(loadingRow);
   scrollChatToBottom();
 
   try {
-    const res = await fetch(`${API_BASE}/api/chats/${currentSessionId}/message`, {
+    const res = await fetch(`${API_BASE}/api/chats/${targetSessionId}/message`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -579,48 +696,80 @@ async function handleSendMessage() {
     const data = await res.json();
     loadingRow.remove();
 
-    if (res.ok && data.message) {
-      renderMessageRow(data.message);
-      await loadChatList();
-    } else {
-      renderMessageRow({
-        role: "assistant",
-        content: `⚠️ Error: ${data.detail || data.error || "Generation failed"}`,
-      });
+    // Check if user is still on the same chat
+    if (currentSessionId === targetSessionId) {
+      if (res.ok && data.message) {
+        renderMessageRow(data.message);
+        await loadChatList();
+      } else {
+        renderMessageRow({
+          role: "assistant",
+          content: `⚠️ Error: ${data.detail || data.error || "Generation could not complete."}`,
+        });
+      }
     }
   } catch (err) {
     loadingRow.remove();
-    renderMessageRow({
-      role: "assistant",
-      content: `⚠️ Network error: Cannot connect to docRag backend. Please ensure 'python server.py' is running.`,
-    });
+    if (currentSessionId === targetSessionId) {
+      renderMessageRow({
+        role: "assistant",
+        content: `⚠️ The document service is temporarily unavailable. Please retry shortly.`,
+      });
+    }
+  } finally {
+    isSending = false;
+    updateSendButtonState();
+    scrollChatToBottom();
   }
-
-  scrollChatToBottom();
 }
 
-// --- Uploading Files ---
+// --- Uploading Files (With client-side validation & in-flight guard) ---
 async function handleFilesUpload(files) {
+  if (isUploading) return;
   if (!files || !files.length) return;
+
+  const validFiles = [];
+  const maxBytes = 10 * 1024 * 1024; // 10 MB
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      showToast(`Skipped '${file.name}': Only PDF files are supported.`, "error");
+      continue;
+    }
+    if (file.size > maxBytes) {
+      showToast(`Skipped '${file.name}': File exceeds 10 MB limit.`, "error");
+      continue;
+    }
+    validFiles.push(file);
+  }
+
+  if (validFiles.length === 0) {
+    if (fileInput) fileInput.value = "";
+    return;
+  }
 
   if (!currentSessionId) {
     await createNewChat();
   }
 
+  const uploadSessionId = currentSessionId;
+  isUploading = true;
+
   const formData = new FormData();
-  for (let i = 0; i < files.length; i++) {
-    formData.append("files", files[i]);
+  for (let i = 0; i < validFiles.length; i++) {
+    formData.append("files", validFiles[i]);
   }
 
   if (uploadStatusText) {
-    uploadStatusText.innerText = "Indexing PDF(s) with local embeddings... Please wait...";
+    uploadStatusText.innerText = "Indexing document(s)... Please wait...";
   }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
   try {
-    const res = await fetch(`${API_BASE}/api/chats/${currentSessionId}/upload`, {
+    const res = await fetch(`${API_BASE}/api/chats/${uploadSessionId}/upload`, {
       method: "POST",
       headers: {
         "x-owner-id": browserOwnerId,
@@ -641,22 +790,28 @@ async function handleFilesUpload(files) {
         if (uploadStatusText) uploadStatusText.innerText = "";
         if (fileInput) fileInput.value = "";
       }, 1000);
-      await switchChat(currentSessionId);
+
+      // Only switch if user hasn't actively switched to another chat
+      if (currentSessionId === uploadSessionId) {
+        await switchChat(uploadSessionId);
+      }
     } else {
       if (uploadStatusText) {
-        uploadStatusText.innerText = `Error: ${result.detail || "Upload failed."}`;
+        uploadStatusText.innerText = `Error: ${result.detail || "Upload could not be processed."}`;
       }
-      showToast(result.detail || "Upload failed", "error");
+      showToast(result.detail || "Upload could not be processed", "error");
     }
   } catch (err) {
     clearTimeout(timeoutId);
-    const msg = err.name === "AbortError" 
-      ? "Upload timed out (60s). If the free tier container was sleeping, please retry."
-      : "Failed to upload: Cannot reach server.";
+    const msg = err.name === "AbortError"
+      ? "Upload timed out (60s). If the free tier container was waking up, please retry."
+      : "The document service is temporarily unavailable. Please retry shortly.";
     if (uploadStatusText) {
       uploadStatusText.innerText = msg;
     }
     showToast(msg, "error");
+  } finally {
+    isUploading = false;
   }
 }
 
@@ -697,7 +852,6 @@ function updateInspectorPages() {
       inspectPageSelect.appendChild(opt);
     });
   } else {
-    // If pages array wasn't passed in full summary, generate page numbers
     for (let i = 1; i <= doc.total_pages; i++) {
       const opt = document.createElement("option");
       opt.value = i;
@@ -722,23 +876,41 @@ function updateInspectorText() {
   inspectTextarea.value = page ? page.text : "(No content on this page)";
 }
 
-// --- Export Conversation ---
-function handleExport() {
+// --- Export Conversation (With explicit x-owner-id header & Blob download) ---
+async function handleExport() {
   if (!currentSessionId) {
     showToast("No active chat to export. Click '+ New Chat' first.", "error");
     return;
   }
 
-  const downloadUrl = `${API_BASE}/api/chats/${currentSessionId}/export`;
-  const a = document.createElement("a");
-  a.href = downloadUrl;
-  const rawTitle = (currentChatData && currentChatData.title) ? currentChatData.title : "transcript";
-  const safeTitle = rawTitle.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 30);
-  a.download = `docRag-${safeTitle}.md`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  showToast("Downloading Q&A transcript report...", "success");
+  try {
+    const res = await fetch(`${API_BASE}/api/chats/${currentSessionId}/export`, {
+      headers: {
+        "x-owner-id": browserOwnerId,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error("Export request failed");
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const rawTitle = (currentChatData && currentChatData.title) ? currentChatData.title : "transcript";
+    const safeTitle = rawTitle.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 30);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `docRag-${safeTitle}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    showToast("Downloaded Q&A transcript report.", "success");
+  } catch (err) {
+    showToast("Could not export chat transcript.", "error");
+  }
 }
 
 // --- Helpers ---

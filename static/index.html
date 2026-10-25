@@ -58,9 +58,9 @@
         <div class="card-badge">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
         </div>
-        <h4>Zero-Cost Stack</h4>
-        <p>FAISS Vector Search &bull; CPU Embeddings &bull; Gemini 3.8 Flash</p>
-        <span class="badge-pill">100% Free Tier</span>
+        <h4>Architecture</h4>
+        <p>FAISS Vector Search &bull; CPU Embeddings &bull; Gemini LLM</p>
+        <span class="badge-pill" id="backendStatusPill">Checking status...</span>
       </div>
     </div>
   </aside>
@@ -74,7 +74,7 @@
     <header class="top-nav">
       <div class="model-selector" id="modelSelector">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
-        <span id="currentModelLabel">Gemini 3.8 Flash (Grounded)</span>
+        <span id="currentModelLabel">Connecting...</span>
       </div>
 
       <div class="nav-actions">
@@ -101,8 +101,8 @@
         <div class="orb-wrapper">
           <div class="glowing-orb"></div>
         </div>
-        <h1 class="hero-title">Ready to Explore Your Documents?</h1>
-        <p class="hero-subtitle">Upload any PDF(s) to start asking questions with verified page citations and substantially reduced hallucinations.</p>
+        <h1 class="hero-title">Explore Your Documents</h1>
+        <p class="hero-subtitle">Upload text-based PDF(s) to query them with page references and quoted source excerpts.</p>
         
         <div class="chip-row">
           <button class="chip-btn" data-prompt="Provide a clear, high-level executive summary of the attached document.">
@@ -120,17 +120,17 @@
         </div>
 
         <div class="feature-cards-grid">
-          <div class="feature-card" id="cardAttachPdf" style="cursor: pointer; border-color: rgba(168, 85, 247, 0.3);" title="Click to attach PDF documents">
-            <h5>📚 Multi-Document RAG <span style="font-size: 11px; color: var(--accent-purple); float: right;">+ Click to Attach</span></h5>
-            <p>Attach multiple PDFs to a single chat session to cross-reference and compare findings.</p>
+          <button type="button" class="feature-card" id="cardAttachPdf" style="text-align: left; cursor: pointer; border-color: rgba(168, 85, 247, 0.3); background: none; font-family: inherit;" title="Click to attach PDF documents">
+            <h5 style="margin-top: 0;">📚 Multi-Document RAG <span style="font-size: 11px; color: var(--accent-purple); float: right;">+ Click to Attach</span></h5>
+            <p style="margin: 0;">Attach multiple PDFs to a single chat session to cross-reference passages across documents.</p>
+          </button>
+          <div class="feature-card">
+            <h5>🎯 Page References</h5>
+            <p>Responses include 1-indexed document page numbers with quoted excerpts for quick inspection.</p>
           </div>
           <div class="feature-card">
-            <h5>🎯 Verified Citations</h5>
-            <p>Every claim cites exact 1-indexed document pages with quoted source excerpts.</p>
-          </div>
-          <div class="feature-card">
-            <h5>🛡️ Prompt Defense</h5>
-            <p>Context is strictly tagged and treated as raw reference data to prevent prompt injection.</p>
+            <h5>🛡️ Prompt Delimiters</h5>
+            <p>Retrieved passages are tagged inside XML boundaries to separate instructions from source text.</p>
           </div>
         </div>
       </div>
@@ -180,11 +180,11 @@
 <!-- =========================================================================
      Upload Modal (Multi-PDF Attach)
      ========================================================================= -->
-<div class="modal-overlay" id="uploadModal">
+<div class="modal-overlay" id="uploadModal" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
   <div class="modal-dialog">
     <div class="modal-header">
-      <h3>Attach PDF Document(s)</h3>
-      <button class="btn-icon" id="closeUploadModalBtn">&times;</button>
+      <h3 id="uploadModalTitle">Attach PDF Document(s)</h3>
+      <button class="btn-icon" id="closeUploadModalBtn" aria-label="Close upload dialog">&times;</button>
     </div>
     
     <!-- Hidden File Input separated from dropzone to avoid event loop -->
@@ -206,11 +206,11 @@
 <!-- =========================================================================
      Page Inspector Modal (Side-by-side or full view of extracted pages)
      ========================================================================= -->
-<div class="modal-overlay" id="inspectorModal">
+<div class="modal-overlay" id="inspectorModal" role="dialog" aria-modal="true" aria-labelledby="inspectorModalTitle">
   <div class="modal-dialog" style="max-width: 720px;">
     <div class="modal-header">
-      <h3>📖 Document Page Inspector</h3>
-      <button class="btn-icon" id="closeInspectorModalBtn">&times;</button>
+      <h3 id="inspectorModalTitle">📖 Document Page Inspector</h3>
+      <button class="btn-icon" id="closeInspectorModalBtn" aria-label="Close inspector dialog">&times;</button>
     </div>
     
     <div style="display: flex; gap: 12px; margin-bottom: 14px;">
@@ -234,23 +234,23 @@
 <!-- =========================================================================
      Settings Modal
      ========================================================================= -->
-<div class="modal-overlay" id="settingsModal">
+<div class="modal-overlay" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
   <div class="modal-dialog">
     <div class="modal-header">
-      <h3>⚙️ Configuration & API Key</h3>
-      <button class="btn-icon" id="closeSettingsModalBtn">&times;</button>
+      <h3 id="settingsModalTitle">⚙️ Configuration & API Key</h3>
+      <button class="btn-icon" id="closeSettingsModalBtn" aria-label="Close settings dialog">&times;</button>
     </div>
 
     <div class="form-group">
       <label>Google Gemini API Key:</label>
-      <input type="password" id="apiKeyInput" class="form-control" placeholder="AIzaSy... (leave blank if set in .env)">
-      <p style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;">Get a free API key at <a href="https://aistudio.google.com/apikey" target="_blank" style="color: var(--accent-purple);">Google AI Studio</a>.</p>
+      <input type="password" id="apiKeyInput" class="form-control" placeholder="AIzaSy... (leave blank to use server environment key)">
+      <p style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;">Keys entered here remain in memory for this browser session only.</p>
     </div>
 
     <div class="form-group">
-      <label>Backend API URL (for Netlify / Remote Host):</label>
-      <input type="text" id="apiBaseInput" class="form-control" placeholder="https://docrag-3gb4.onrender.com (defaults to Render backend)">
-      <p style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;">Connected to your permanent 24/7 Render cloud backend.</p>
+      <label>Backend API URL:</label>
+      <input type="text" id="apiBaseInput" class="form-control" placeholder="https://docrag-3gb4.onrender.com">
+      <p style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;" id="backendConnectionNote">Connection status: Checking...</p>
     </div>
 
     <div class="form-group">
