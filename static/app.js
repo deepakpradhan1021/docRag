@@ -585,23 +585,28 @@ function renderMessageRow(msg) {
     citationsHtml = `
       <div class="citations-container">
         <div class="citations-header">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-          Source References (${msg.citations.length})
-        </div>
-        ${msg.citations
-          .map(
-            (c) => `
-          <div class="citation-card" style="cursor: pointer;" onclick="inspectSpecificPage('${escapeHtml(c.document_name)}', ${parseInt(c.page_number) || 1})" title="Click to view this page in the Inspector">
-            <div class="citation-meta">
-              <span class="citation-badge">[Source ${parseInt(c.source_index) || 1}]</span>
-              <span>📄 Page ${parseInt(c.page_number) || 1}</span>
-              <span style="color: var(--text-dim); font-size: 11px;">(${escapeHtml(c.document_name)})</span>
-            </div>
-            <div class="citation-quote">"${escapeHtml(c.excerpt)}"</div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            <span>Verified Sources (${msg.citations.length})</span>
           </div>
-        `
-          )
-          .join("")}
+          <button class="citations-toggle-btn" type="button" onclick="toggleCitations(this)">Collapse ▴</button>
+        </div>
+        <div class="citations-list">
+          ${msg.citations
+            .map(
+              (c) => `
+            <div class="citation-card" style="cursor: pointer;" onclick="inspectSpecificPage('${escapeHtml(c.document_name)}', ${parseInt(c.page_number) || 1})" title="Click to view full page in the Inspector">
+              <div class="citation-meta">
+                <span class="citation-badge">[Source ${parseInt(c.source_index) || 1}]</span>
+                <span>📄 Page ${parseInt(c.page_number) || 1}</span>
+                <span style="color: var(--text-dim); font-size: 11px;">(${escapeHtml(c.document_name)})</span>
+              </div>
+              <div class="citation-quote">"${escapeHtml(c.excerpt)}"</div>
+            </div>
+          `
+            )
+            .join("")}
+        </div>
       </div>
     `;
   }
@@ -627,6 +632,21 @@ function renderMessageRow(msg) {
 
   messagesList.appendChild(row);
 }
+
+// Interactive helper: Toggle citations dropdown
+window.toggleCitations = function (btn) {
+  const container = btn.closest(".citations-container");
+  if (!container) return;
+  const list = container.querySelector(".citations-list");
+  if (!list) return;
+  if (list.style.display === "none") {
+    list.style.display = "flex";
+    btn.textContent = "Collapse ▴";
+  } else {
+    list.style.display = "none";
+    btn.textContent = "Expand ▾";
+  }
+};
 
 // Interactive helper: Clicking a citation card opens the page inspector directly
 window.inspectSpecificPage = function (docName, pageNum) {
@@ -916,11 +936,15 @@ async function handleExport() {
 
 // --- Helpers ---
 function scrollChatToBottom() {
-  if (chatScrollArea) {
-    setTimeout(() => {
+  if (!chatScrollArea) return;
+  setTimeout(() => {
+    const lastChild = messagesList ? messagesList.lastElementChild : null;
+    if (lastChild) {
+      lastChild.scrollIntoView({ behavior: "smooth", block: "end" });
+    } else {
       chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
-    }, 50);
-  }
+    }
+  }, 60);
 }
 
 function escapeHtml(text) {

@@ -240,7 +240,18 @@ def answer_question(
             ),
         )
 
-    # Step 1: Query reformulation for follow-ups (if needed)
+    # Step 1: Conversational greeting shortcut
+    normalized_q = re.sub(r"[^\w\s]", "", question.strip().lower())
+    greetings = {"hi", "hello", "helo", "hey", "greetings", "good morning", "good afternoon", "good evening", "howdy", "sup", "yo"}
+    if normalized_q in greetings:
+        return RAGResponse(
+            answer="Hello! I'm docRag, your AI document assistant. Your documents are indexed and ready. Ask me any question, request an executive summary, or look up specific sections!",
+            citations=[],
+            retrieved_chunks_count=0,
+            is_fallback_answer=False,
+        )
+
+    # Step 2: Query reformulation for follow-ups (if needed)
     effective_query = question.strip()
     if chat_history and len(chat_history) > 0:
         try:
@@ -328,7 +339,6 @@ def answer_question(
         error_msg = last_error or "LLM generation failed."
         if "RESOURCE_EXHAUSTED" in error_msg or "429" in error_msg:
             is_daily = "GenerateRequestsPerDay" in error_msg or "PerDay" in error_msg or "per day" in error_msg.lower()
-            import re
             time_match = re.search(r"retry in\s+([0-9hmsd\.\s]+)", error_msg)
             time_hint = f" (Google resets quota in ~{time_match.group(1).strip()})" if time_match else ""
             if is_daily:
