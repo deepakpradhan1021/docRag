@@ -25,25 +25,30 @@ GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 def get_gemini_api_key(override_key: str | None = None) -> str:
     """
     Resolve Google API key in priority order:
-    1. Explicit runtime override (e.g. from Streamlit sidebar input)
+    1. Explicit runtime override (e.g. from UI settings input)
     2. Streamlit secrets (for Streamlit Community Cloud)
     3. OS environment variable / .env file
     """
     if override_key and override_key.strip():
-        return override_key.strip()
+        k = override_key.strip()
+        if k not in ("your-api-key-here", "your_gemini_api_key_here", "AIzaSy..."):
+            return k
 
     # Try Streamlit secrets if running inside Streamlit
     try:
         import streamlit as st
         if hasattr(st, "secrets") and "GOOGLE_API_KEY" in st.secrets:
             secret_val = str(st.secrets["GOOGLE_API_KEY"]).strip()
-            if secret_val:
+            if secret_val and secret_val not in ("your-api-key-here", "your_gemini_api_key_here"):
                 return secret_val
     except Exception:
         pass
 
     # Fallback to environment variable
-    return os.getenv("GOOGLE_API_KEY", "").strip()
+    env_key = os.getenv("GOOGLE_API_KEY", "").strip()
+    if env_key in ("your-api-key-here", "your_gemini_api_key_here"):
+        return ""
+    return env_key
 
 
 # Which Gemini model to call. "gemini-3.8-flash" is Google's recommended

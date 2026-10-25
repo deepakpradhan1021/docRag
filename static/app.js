@@ -12,7 +12,8 @@ const API_BASE = customApiBase || ((isLocalFile || isNetlify) ? "https://docrag-
 // --- State ---
 let currentSessionId = null;
 let currentChatData = null;
-let userApiKey = sessionStorage.getItem("docRag_apiKey") || ""; // In-memory session persistence
+// Persistent in localStorage so users only have to enter their key once
+let userApiKey = localStorage.getItem("docRag_apiKey") || "";
 let isServerOnline = false;
 let isHealthChecking = false;
 let isSending = false;
@@ -308,9 +309,9 @@ function setupEventListeners() {
     saveSettingsBtn.addEventListener("click", () => {
       userApiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
       if (userApiKey) {
-        sessionStorage.setItem("docRag_apiKey", userApiKey);
+        localStorage.setItem("docRag_apiKey", userApiKey);
       } else {
-        sessionStorage.removeItem("docRag_apiKey");
+        localStorage.removeItem("docRag_apiKey");
       }
 
       if (apiBaseInput) {
@@ -704,7 +705,7 @@ async function handleSendMessage() {
       } else {
         renderMessageRow({
           role: "assistant",
-          content: `⚠️ Error: ${data.detail || data.error || "Generation could not complete."}`,
+          content: `⚠️ ${data.detail || data.error || "Generation could not complete."}`,
         });
       }
     }
