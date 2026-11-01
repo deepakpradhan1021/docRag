@@ -12,8 +12,14 @@ const API_BASE = customApiBase || ((isLocalFile || isNetlify) ? "https://docrag-
 // --- State ---
 let currentSessionId = null;
 let currentChatData = null;
-// Persistent in localStorage so users only have to enter their key once
-let userApiKey = localStorage.getItem("docRag_apiKey") || "";
+
+// Clean up any stale keys from older localStorage implementations
+if (typeof localStorage !== "undefined" && localStorage.getItem("docRag_apiKey")) {
+  localStorage.removeItem("docRag_apiKey");
+}
+
+// Session-only storage: In memory for this browser tab only (cleared on tab close)
+let userApiKey = typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("docRag_apiKey") || "") : "";
 let isServerOnline = false;
 let isHealthChecking = false;
 let isSending = false;
@@ -66,6 +72,7 @@ const closeSettingsModalBtn = document.getElementById("closeSettingsModalBtn");
 const apiKeyInput = document.getElementById("apiKeyInput");
 const apiBaseInput = document.getElementById("apiBaseInput");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+const clearApiKeyBtn = document.getElementById("clearApiKeyBtn");
 const exportBtn = document.getElementById("exportBtn");
 
 // Track modal trigger element for focus restoration
@@ -77,7 +84,11 @@ async function initApp() {
   if (userApiKey && apiKeyInput) apiKeyInput.value = userApiKey;
   if (customApiBase && apiBaseInput) apiBaseInput.value = customApiBase;
 
-  updateConnectionStatusUI("Connecting...");
+  updateConnectionStatusUI("Waking up server, please wait ~45 s", false);
+  if (currentModelLabel) {
+    currentModelLabel.innerText = "Waking up server, please wait ~45 s";
+  }
+
   await checkServerHealth();
   await loadServerConfig();
   await loadChatList();
@@ -111,16 +122,22 @@ async function checkServerHealth() {
     if (res.ok) {
       isServerOnline = true;
       removeOfflineBanner();
-      updateConnectionStatusUI("Ready", true);
+      updateConnectionStatusUI("Server Ready (Connected)", true);
     } else {
       isServerOnline = false;
       showOfflineBanner();
-      updateConnectionStatusUI("Waking up...");
+      updateConnectionStatusUI("Free-tier backend, may take up to 45 s to wake", false);
+      if (currentModelLabel) {
+        currentModelLabel.innerText = "Waking up server, please wait ~45 s";
+      }
     }
   } catch (err) {
     isServerOnline = false;
     showOfflineBanner();
-    updateConnectionStatusUI("Waking up...");
+    updateConnectionStatusUI("Free-tier backend, may take up to 45 s to wake", false);
+    if (currentModelLabel) {
+      currentModelLabel.innerText = "Waking up server, please wait ~45 s";
+    }
   } finally {
     isHealthChecking = false;
   }
@@ -135,6 +152,10 @@ async function loadServerConfig() {
       if (currentModelLabel && data.model_name) {
         currentModelLabel.innerText = `${data.model_name} (Grounded)`;
       }
+      const activeModelInput = document.getElementById("activeModelSettingInput");
+      if (activeModelInput && data.model_name) {
+        activeModelInput.value = `${data.model_name} (Cascade: gemini-2.0-flash, gemini-1.5-flash)`;
+      }
     }
   } catch (err) {
     console.warn("Could not load backend config:", err);
@@ -148,6 +169,26 @@ function showOfflineBanner() {
     banner.id = "offlineBanner";
     banner.style.cssText = `
       background: linear-gradient(90deg, #ea580c 0%, #c2410c 100%);
+      color: white;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+      position: sticky;
+      top: 0;
+    `;
+    banner.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #fef08a;"></span>
+        <span>Render free-tier backend is sleeping (~30-45 s cold start). Waking up server, please wait...</span>
+      </div>
+      <button id="retryConnBtn" style="background: white; color: #c2410c; border: none; padding: 4px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;">Check Again</button>
+    `;
+    document.body.prepend(banner);
       color: white;
       padding: 10px 20px;
       font-size: 13px;
@@ -305,13 +346,25 @@ function setupEventListeners() {
   if (settingsBtn) settingsBtn.addEventListener("click", () => openModal(settingsModal));
   if (closeSettingsModalBtn) closeSettingsModalBtn.addEventListener("click", () => closeModal(settingsModal));
 
+  if (clearApiKeyBtn) {
+    clearApiKeyBtn.addEventListener("click", () => {
+      sessionStorage.removeItem("docRag_apiKey");
+      localStorage.removeItem("docRag_apiKey");
+      userApiKey = "";
+      if (apiKeyInput) apiKeyInput.value = "";
+      showToast("API key cleared from this browser session.", "info");
+    });
+  }
+
   if (saveSettingsBtn) {
     saveSettingsBtn.addEventListener("click", () => {
       userApiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
       if (userApiKey) {
-        localStorage.setItem("docRag_apiKey", userApiKey);
+        sessionStorage.setItem("docRag_apiKey", userApiKey);
+        showToast("Key saved in memory for this session only.", "success");
       } else {
-        localStorage.removeItem("docRag_apiKey");
+        sessionStorage.removeItem("docRag_apiKey");
+        showToast("Using default server environment key.", "info");
       }
 
       if (apiBaseInput) {
@@ -328,8 +381,7 @@ function setupEventListeners() {
       }
 
       closeModal(settingsModal);
-      showToast("Configuration saved! Reconnecting...", "success");
-      setTimeout(() => window.location.reload(), 600);
+      setTimeout(() => checkServerHealth(), 300);
     });
   }
 
@@ -587,7 +639,7 @@ function renderMessageRow(msg) {
         <div class="citations-header">
           <div style="display: flex; align-items: center; gap: 6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-            <span>Verified Sources (${msg.citations.length})</span>
+            <span>Source References (${msg.citations.length})</span>
           </div>
           <button class="citations-toggle-btn" type="button" onclick="toggleCitations(this)">Collapse ▴</button>
         </div>

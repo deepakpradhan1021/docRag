@@ -17,22 +17,22 @@
 
 ## 🌟 Live Demo & Deployment
 
-- **Live Production App (Render 24/7):** [https://docrag-3gb4.onrender.com](https://docrag-3gb4.onrender.com)
+- **Live Production App (Render Free Tier):** [https://docrag-3gb4.onrender.com](https://docrag-3gb4.onrender.com)
 - **Interactive API Documentation (Swagger):** [https://docrag-3gb4.onrender.com/docs](https://docrag-3gb4.onrender.com/docs)
 - **GitHub Repository:** [https://github.com/deepakpradhan1021/docRag](https://github.com/deepakpradhan1021/docRag)
 
-> **Note on Free-Tier Cold Starts:**  
-> Render's free tier spins down containers during idle periods. When opening the app after inactivity, please allow ~30–45 seconds for the backend container to wake up. An amber status pill will indicate when the container is ready.
+> **Free-Tier Backend Notice:**  
+> Render's free tier sleeps during inactivity and may take up to 45 seconds to wake up on the first request. All sessions and uploaded documents are held ephemerally in RAM and reset upon container sleep or restart.
 
 ---
 
 ## ✨ Key Capabilities
 
 - **📚 Multi-Document Workspaces:** Attach and cross-reference multiple PDFs inside a single chat session.
-- **🎯 Verified 1-Indexed Citations:** Every answer cites the exact page number alongside a quoted source excerpt.
-- **🛡️ Prompt Defense:** Document content is strictly fenced in untrusted XML delimiters to resist prompt injection.
-- **⚡ In-Memory Vector Search:** FAISS index runs ephemerally in RAM per session, ensuring data isolation and privacy.
-- **🪶 Ultra-Low Memory Footprint:** Tuned with single-threaded embeddings and active garbage collection to operate within 512 MB RAM containers.
+- **🎯 1-Indexed Page References:** Every answer cites the exact document page number alongside quoted source excerpts.
+- **🛡️ Prompt Delimiters:** Document content is strictly fenced in untrusted XML delimiters to separate reference text from system instructions.
+- **⚡ In-Memory Vector Search:** Pure Python hybrid retrieval runs ephemerally in RAM per session with no persistent database dependencies.
+- **🪶 Ultra-Low Memory Footprint:** Tuned with single-threaded embeddings and active garbage collection to operate reliably within 512 MB RAM containers.
 - **🚦 Production Hardening:** Equipped with an in-memory sliding window rate limiter (40 req/min/IP) and client-side retry recovery.
 
 ---
@@ -78,7 +78,7 @@
               ▼
 ┌─────────────────────────┐
 │  Grounded Synthesis     │
-│  • Gemini 3.8 Flash     │
+│  • Gemini 2.5 Flash     │
 │  • Citation extraction  │
 └─────────────┬───────────┘
               │
@@ -151,9 +151,9 @@ python eval_benchmark.py
 ```
 
 **Benchmark Results:**
-- **Top-1 Precision:** 90.0% (9/10 queries)
+- **Top-1 Precision:** 80.0% (8/10 queries)
 - **Recall@3 (Passage Hit Rate):** 90.0% (9/10 queries)
-- **Execution Time:** ~24 seconds on standard CPU
+- **Execution Time:** < 0.3 seconds on standard CPU
 
 ---
 

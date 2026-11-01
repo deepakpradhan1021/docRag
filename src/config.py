@@ -51,19 +51,18 @@ def get_gemini_api_key(override_key: str | None = None) -> str:
     return env_key
 
 
-# Which Gemini model to call. "gemini-3.8-flash" is Google's recommended
-# free-tier model for high accuracy, grounded QA, and fast inference.
-LLM_MODEL_NAME: str = os.getenv("LLM_MODEL_NAME", "gemini-3.8-flash")
+# Which Gemini model to call. "gemini-2.5-flash" is Google's standard
+# fast, grounded model with free-tier support in Google AI Studio.
+LLM_MODEL_NAME: str = os.getenv("LLM_MODEL_NAME", "gemini-2.5-flash")
 
 # Fallback cascade of models for zero-downtime quota resilience.
 # If the primary model hits a daily quota (RPD) or rate limit,
 # docRag automatically cascades to the next available free model.
 CANDIDATE_MODELS: list[str] = [
     LLM_MODEL_NAME,
-    "gemini-3.5-flash-lite",
-    "gemini-3.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
     "gemini-2.5-flash-lite",
-    "gemini-2.5-flash",
 ]
 
 # Temperature controls randomness.  0.1 keeps answers factual and
