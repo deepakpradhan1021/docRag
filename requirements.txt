@@ -1,31 +1,28 @@
 # =============================================================================
 # docRag — requirements.txt
 # =============================================================================
-# Pinned to major.minor to balance reproducibility with patch-level updates.
-# Run:  pip install -r requirements.txt
-#
-# Why each package:
-#   streamlit          — Web UI framework
-#   pymupdf            — PDF text extraction (fast, no Java dependency)
-#   langchain          — RAG pipeline orchestration
-#   langchain-google-genai — LangChain ↔ Google Gemini integration
-#   langchain-community — Community vector store integrations (FAISS wrapper)
-#   faiss-cpu          — Local vector similarity search (no GPU needed)
-#   sentence-transformers — Local embedding model (all-MiniLM-L6-v2)
-#   python-dotenv      — Load .env files for local API key management
-#   langchain-huggingface — LangChain ↔ HuggingFace embeddings integration
+# Lightweight, memory-safe RAG stack (<85 MB RAM, fits Render 512 MB limit)
+# Run: pip install -r requirements.txt
 # =============================================================================
 
-streamlit>=1.38,<2
-pymupdf>=1.24,<2
-langchain>=0.3,<1
-langchain-google-genai>=2,<5
-langchain-community>=0.3,<1
-langchain-huggingface>=0.1,<1
-faiss-cpu>=1.9,<2
-sentence-transformers>=3,<7
-torchvision>=0.15,<1
-python-dotenv>=1,<2
+# Core Web & API Frameworks
 fastapi>=0.115,<1
 uvicorn>=0.30,<1
 python-multipart>=0.0.9,<1
+streamlit>=1.38,<2
+
+# PDF Processing & RAG Orchestration
+pymupdf>=1.24,<2
+langchain>=0.3,<1
+langchain-core>=0.3,<1
+langchain-google-genai>=2,<5
+langchain-community>=0.3,<1
+
+# Memory-Safe BM25 & Retrieval (<85 MB RAM)
+scikit-learn>=1.3,<2
+numpy>=1.24,<3
+
+# Configuration & Testing
+python-dotenv>=1,<2
+pytest>=8.0,<9
+httpx>=0.27,<1

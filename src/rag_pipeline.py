@@ -224,7 +224,7 @@ def answer_question(
     Full RAG pipeline invocation:
     1. Validate API key
     2. Optionally reformulate query if chat history exists
-    3. Retrieve relevant chunks from FAISS
+    3. Retrieve relevant chunks from in-memory index
     4. Construct grounded prompt with untrusted boundary tags
     5. Call Google Gemini LLM
     6. Extract and validate source citations
@@ -266,7 +266,7 @@ def answer_question(
         except Exception:
             effective_query = question.strip()
 
-    # Step 2: Retrieve document evidence from FAISS
+    # Step 3: Retrieve document evidence from in-memory index
     try:
         retrieved_chunks = retrieve_relevant_chunks(vector_store, query=effective_query, top_k=top_k)
     except Exception as exc:

@@ -1,5 +1,5 @@
 """
-Unit tests for text chunking, FAISS vector store creation, and retrieval.
+Unit tests for text chunking, BM25 memory-safe index creation, and retrieval.
 """
 
 import unittest

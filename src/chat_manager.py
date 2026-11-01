@@ -1,7 +1,7 @@
 """
 docRag Multi-Chat & Document Session Manager
 ============================================
-Manages independent chat sessions, multi-document indexing with FAISS,
+Manages independent chat sessions, multi-document indexing with lightweight BM25,
 and message histories. Supports persistent on-disk caching in data/sessions.
 """
 
@@ -95,7 +95,7 @@ class ChatSession:
         )
         self.documents[file_name] = attached
 
-        # Rebuild or update the multi-document FAISS index
+        # Rebuild or update the multi-document in-memory index
         # Filter out existing chunks for this file if re-uploaded to prevent duplicate indexing
         self.all_chunks = [
             c for c in self.all_chunks
@@ -114,12 +114,12 @@ class ChatSession:
         return attached
 
     def save_to_disk(self) -> None:
-        """Persist session metadata, message history, and FAISS vector index to disk."""
+        """Persist session metadata and document text to disk (index is rebuilt in-memory on reload)."""
         try:
             session_folder = SESSIONS_DIR / self.session_id
             session_folder.mkdir(parents=True, exist_ok=True)
 
-            # 1. Save metadata and message JSON
+            # Save metadata, message history, and extracted document page text
             meta_path = session_folder / "session.json"
             meta_data = {
                 "session_id": self.session_id,
@@ -155,18 +155,13 @@ class ChatSession:
             }
             with open(meta_path, "w", encoding="utf-8") as f:
                 json.dump(meta_data, f, ensure_ascii=False, indent=2)
-
-            # 2. Save FAISS index
-            if self.vector_store is not None:
-                faiss_dir = session_folder / "faiss_index"
-                self.vector_store.save_local(str(faiss_dir))
         except Exception:
             # Graceful degrade if disk write fails
             pass
 
     @classmethod
     def load_from_disk(cls, session_id: str) -> Optional["ChatSession"]:
-        """Restore a ChatSession and its FAISS index from disk."""
+        """Restore a ChatSession from disk and rebuild its in-memory BM25 index."""
         session_folder = SESSIONS_DIR / session_id
         meta_path = session_folder / "session.json"
         if not meta_path.exists():

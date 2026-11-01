@@ -30,7 +30,7 @@ jobs:
 
       - name: Run Unit & API Test Suite
         run: |
-          python -m unittest discover tests
+          pytest tests/ -v
 
       - name: Run Retrieval Benchmark
         run: |
