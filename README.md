@@ -1,39 +1,36 @@
-# 📄 docRag — Production-Ready Zero-Budget Document RAG System
+# docRag — Lightweight Document Q&A with Grounded Citations
 
 [![CI Test Suite](https://github.com/deepakpradhan1021/docRag/actions/workflows/ci.yml/badge.svg)](https://github.com/deepakpradhan1021/docRag/actions)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.40+-FF4B4B.svg)](https://streamlit.io/)
-[![LangChain](https://img.shields.io/badge/LangChain-0.3+-1C3C3C.svg)](https://www.langchain.com/)
-[![BM25 Retrieval](https://img.shields.io/badge/Retrieval-BM25%20%2B%20n--gram-blue.svg)](https://scikit-learn.org/)
+[![Google Gemini API](https://img.shields.io/badge/Google%20Gemini-API-orange.svg)](https://aistudio.google.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-![docRag Live Application UI](static/docrag_live_preview.png)
+A lightweight Document Question & Answering (RAG) web application built with **FastAPI**, **Streamlit**, and the **Google Gemini API**. It allows users to upload PDF documents, ask questions, and receive answers accompanied by 1-indexed page citations and quoted source snippets.
 
-> **A 100% zero-cost Document Intelligence & Retrieval-Augmented Generation (RAG) platform.**  
-> Upload PDFs, cross-reference multiple documents in isolated sessions, and receive accurate answers with exact 1-indexed page citations and quoted excerpts — featuring prompt injection defense, browser-isolated chats, sliding-window rate limiting, and multi-model quota fallback.
+To run reliably on free-tier cloud containers (such as Render's 512 MB RAM limit) without out-of-memory errors, docRag uses an in-memory **Okapi BM25** keyword index combined with sublinear character n-grams instead of heavy local embedding models.
 
 ---
 
 ## 🌟 Live Demo & Deployment
 
-- **Live Production App (Render Free Tier):** [https://docrag-3gb4.onrender.com](https://docrag-3gb4.onrender.com)
-- **Interactive API Documentation (Swagger):** [https://docrag-3gb4.onrender.com/docs](https://docrag-3gb4.onrender.com/docs)
-- **GitHub Repository:** [https://github.com/deepakpradhan1021/docRag](https://github.com/deepakpradhan1021/docRag)
+- **Live Web App (Render Free Tier):** [https://docrag-3gb4.onrender.com](https://docrag-3gb4.onrender.com)
+- **API Documentation (Swagger):** [https://docrag-3gb4.onrender.com/docs](https://docrag-3gb4.onrender.com/docs)
+- **Repository:** [https://github.com/deepakpradhan1021/docRag](https://github.com/deepakpradhan1021/docRag)
 
-> **Free-Tier Backend Notice:**  
-> Render's free tier sleeps during inactivity and may take up to 45 seconds to wake up on the first request. All sessions and uploaded documents are held ephemerally in RAM and reset upon container sleep or restart.
+> *Note on Free-Tier Hosting:* The Render instance spins down after periods of inactivity. Please allow 30–45 seconds for cold start on the first request. Uploaded documents and sessions reside ephemerally in RAM.
 
 ---
 
-## ✨ Key Capabilities
+## ✨ Features
 
-- **📚 Multi-Document Workspaces:** Attach and cross-reference multiple PDFs inside a single chat session.
-- **🎯 1-Indexed Page References:** Every answer cites the exact document page number alongside quoted source excerpts.
-- **🛡️ Prompt Delimiters:** Document content is strictly fenced in untrusted XML delimiters to separate reference text from system instructions.
-- **⚡ In-Memory Keyword Retrieval:** Pure Python BM25 and sublinear character n-grams run ephemerally in RAM per session with zero database dependencies.
-- **🪶 Ultra-Low Memory Footprint (<85 MB RAM):** Lightweight keyword (BM25) retrieval, built to fit Render's 512 MB limit without PyTorch OOM crashes.
-- **🚦 Production Hardening:** Equipped with an in-memory sliding window rate limiter (40 req/min/IP) and client-side retry recovery.
+- **Multi-Document Sessions:** Upload and query multiple PDFs within the same conversation session.
+- **1-Indexed Page Citations:** Every answer references the source document name, exact page number, and relevant excerpt.
+- **Memory-Safe Architecture (<85 MB RAM):** Built with pure Python BM25 and scikit-learn TF-IDF n-grams to avoid PyTorch memory overhead.
+- **Prompt Isolation:** Document passages are wrapped in strict XML delimiters to separate reference material from instruction prompts.
+- **In-Memory Rate Limiting:** Sliding-window rate limiter (120 req/min per IP) to guard against API spam.
+- **Dual Interfaces:** Full REST API served by FastAPI and an optional Streamlit dashboard.
 
 ---
 
@@ -59,12 +56,12 @@
                                       ▼
                           ┌────────────────────────┐
                           │  BM25 In-Memory Index  │
-                          │  • Zero-PyTorch (<85MB)│
+                          │  • Lightweight (<85MB) │
                           └───────────┬────────────┘
                                       │
-      ┌───────────────────────────────┴──────────────────────────────┐
-      │                                                              │
-      ▼                                                              ▼
+       ┌──────────────────────────────┴──────────────────────────────┐
+       │                                                             │
+       ▼                                                             ▼
 ┌─────────────────────────┐                            ┌─────────────────────────┐
 │     User Asks Question  │                            │  Page Inspector Modal   │
 └─────────────┬───────────┘                            └─────────────────────────┘
@@ -78,7 +75,7 @@
               ▼
 ┌─────────────────────────┐
 │  Grounded Synthesis     │
-│  • Gemini 2.5 Flash     │
+│  • Google Gemini API    │
 │  • Citation extraction  │
 └─────────────┬───────────┘
               │
@@ -94,7 +91,7 @@
 
 ## 🚀 Quick Start (Local Setup)
 
-### 1. Clone & Setup Environment
+### 1. Clone the repository & create environment
 
 ```bash
 git clone https://github.com/deepakpradhan1021/docRag.git
@@ -102,9 +99,11 @@ cd docRag
 
 # Create and activate a virtual environment
 python -m venv venv
-# On Windows:
+
+# Windows
 venv\Scripts\activate
-# On Linux/macOS:
+
+# Linux / macOS
 source venv/bin/activate
 
 # Install dependencies
@@ -113,26 +112,26 @@ pip install -r requirements.txt
 
 ### 2. Configure API Key
 
-Copy the example environment configuration:
+Copy `.env.example` to `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Add your Google Gemini API key to `.env` (obtainable for free at [Google AI Studio](https://aistudio.google.com/apikey)):
+Add your Google Gemini API key to `.env` (available at [Google AI Studio](https://aistudio.google.com/apikey)):
 
 ```ini
-GOOGLE_API_KEY=AIzaSy...
+GOOGLE_API_KEY=your_gemini_api_key_here
 ```
 
-*(You can also leave this blank and supply your key directly in the web UI Settings modal).*
+*(You can also leave `.env` empty and enter your key in the web UI settings modal).*
 
-### 3. Launch Application
+### 3. Run the application
 
-**FastAPI Full-Stack Server (Recommended):**
+**FastAPI Server (Recommended):**
 ```bash
 python server.py
-# Access UI at http://localhost:8000
+# Open your browser at http://localhost:8000
 ```
 
 **Streamlit Dashboard:**
@@ -144,33 +143,31 @@ streamlit run app.py
 
 ## 📊 Evaluation Benchmark
 
-The repository includes a reproducible synthetic evaluation benchmark (`eval_benchmark.py`) to quantify retrieval precision and recall across multi-page ground-truth facts:
+The repository includes a synthetic evaluation script (`eval_benchmark.py`) to test retrieval precision and recall over multi-page documents:
 
 ```bash
 python eval_benchmark.py
 ```
 
-**Benchmark Results (Synthetic 10-query test on 10-page document):**
-- **Top-1 Precision:** 80.0% (8/10 queries) — *synthetic 10-query test*
-- **Recall@3 (Passage Hit Rate):** 90.0% (9/10 queries) — *synthetic 10-query test*
-- **Execution Time:** < 0.3 seconds on standard CPU
+**Synthetic Benchmark Results (10-query test on 10-page document):**
+- **Top-1 Precision:** 80.0% (8/10 queries)
+- **Recall@3 (Passage Hit Rate):** 90.0% (9/10 queries)
+- **Execution Time:** < 0.3 seconds on CPU
 
 ---
 
-## ⚠️ Limitations & Trade-offs
+## ⚠️ Known Limitations & Design Decisions
 
-- **Keyword Matching vs. Semantic Paraphrasing:** To guarantee zero OOM crashes on Render's 512 MB free tier, docRag dropped heavy neural embedding models (PyTorch / SentenceTransformers) in favor of lightweight in-memory BM25 + sublinear character n-grams. As a result, questions that share zero vocabulary with the document (e.g. asking *"How much money did the company make?"* when the PDF only uses the term *"revenue"*) may rank lower than queries using direct terminology.
-- **Ephemeral Storage:** Chat histories and document indices live exclusively in server RAM and are wiped whenever Render spins down or restarts the free container.
-- **Free-Tier Cold Starts:** When waking up from an idle spin-down, the Render backend takes ~30–45 seconds to respond.
+- **Keyword vs. Dense Semantic Matching:** To guarantee zero OOM crashes under 512 MB RAM, docRag uses BM25 and character n-grams instead of deep transformer models. Queries with zero lexical overlap with the document (e.g. asking *"How much money did the company make?"* when the text only says *"gross revenues"*) may rank lower than exact keyword matches.
+- **Ephemeral Storage:** Document indices and chat histories live in RAM and are cleared when the container restarts.
+- **Cold Starts:** Free-tier cloud instances sleep when inactive and require ~30–45 seconds to wake up on the first request.
 
 ---
 
 ## 🧪 Testing
 
-The test suite runs with either `pytest` or `unittest`:
-
 ```bash
-# Run with pytest (recommended)
+# Run tests with pytest
 pytest tests/ -v
 
 # Or run with standard library unittest
@@ -181,4 +178,4 @@ python -m unittest discover tests
 
 ## 📄 License
 
-This project is open-source under the [MIT License](LICENSE).
+This project is open source and available under the [MIT License](LICENSE).
