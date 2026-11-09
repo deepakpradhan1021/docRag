@@ -98,7 +98,7 @@ async def rate_limiting_middleware(request: Request, call_next):
 # --- Request Models ---
 class CreateChatRequest(BaseModel):
     title: Optional[str] = "New Chat"
-    owner_id: Optional[str] = "default_user"
+    owner_id: Optional[str] = None
 
 
 class SendMessageRequest(BaseModel):

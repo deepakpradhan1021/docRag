@@ -181,6 +181,20 @@ def extract_pages_from_pdf(
             raw_text = page.get_text("text") or ""
             cleaned = clean_page_text(raw_text)
 
+            # Extract any structured tables on the page and append as markdown tables
+            try:
+                tabs = page.find_tables()
+                if tabs and len(tabs.tables) > 0:
+                    table_mds = []
+                    for t in tabs:
+                        md = t.to_markdown()
+                        if md and md.strip():
+                            table_mds.append(md.strip())
+                    if table_mds:
+                        cleaned = (cleaned + "\n\n### Tables on Page " + str(page_num) + ":\n" + "\n\n".join(table_mds)).strip()
+            except Exception:
+                pass  # Fallback gracefully to raw text if table detection fails
+
             total_chars += len(cleaned)
             # We record each page even if empty, but we validate overall content below
             extracted_pages.append(
