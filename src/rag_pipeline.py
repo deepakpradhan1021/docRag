@@ -7,7 +7,7 @@ LLM answer generation via Google Gemini, citation parsing, and validation.
 
 from dataclasses import dataclass, field
 import re
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -51,6 +51,44 @@ class RAGResponse:
     error: Optional[str] = None
 
 
+def extract_text_from_content(content: Any) -> str:
+    """
+    Safely extract a clean string representation from an LLM response or message content.
+    Handles:
+    - str: plain string
+    - list of strings: ["Hello", "World"]
+    - list of dicts (LangChain multimodal/block format): [{"type": "text", "text": "..."}]
+    - objects with text or content attributes
+    - None or unexpected types
+    """
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        text_parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                if block.strip():
+                    text_parts.append(block.strip())
+            elif isinstance(block, dict):
+                text = block.get("text") or block.get("content") or ""
+                if isinstance(text, str) and text.strip():
+                    text_parts.append(text.strip())
+                elif text:
+                    text_parts.append(str(text).strip())
+            elif hasattr(block, "text"):
+                t = getattr(block, "text", "")
+                if t and str(t).strip():
+                    text_parts.append(str(t).strip())
+            elif block is not None:
+                s = str(block).strip()
+                if s:
+                    text_parts.append(s)
+        return "\n\n".join(text_parts).strip()
+    if content is None:
+        return ""
+    return str(content).strip()
+
+
 def format_context_prompt(chunks: list[Document]) -> tuple[str, dict[int, Document]]:
     """
     Format retrieved document chunks into an untrusted reference block
@@ -68,9 +106,12 @@ def format_context_prompt(chunks: list[Document]) -> tuple[str, dict[int, Docume
         source_name = chunk.metadata.get("source", "document.pdf")
         chunk_id = chunk.metadata.get("chunk_id", f"p{page}-c1")
 
+        # Safely extract text from chunk.page_content regardless of data type
+        chunk_text = extract_text_from_content(getattr(chunk, "page_content", ""))
+
         context_lines.append(
             f"--- [Source {idx} | Page {page} | Document: {source_name}] ---\n"
-            f"<untrusted_document_content>\n{chunk.page_content.strip()}\n"
+            f"<untrusted_document_content>\n{chunk_text}\n"
             f"</untrusted_document_content>\n"
         )
 
@@ -203,7 +244,8 @@ def reformulate_query_with_history(
 
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
-        standalone = response.content.strip() if hasattr(response, "content") else question
+        raw_reform = getattr(response, "content", response)
+        standalone = extract_text_from_content(raw_reform)
         if standalone and len(standalone) > 3:
             return standalone
     except Exception:
@@ -318,22 +360,25 @@ def answer_question(
                 max_retries=1,  # Don't sleep 60s when daily quota is exhausted
             )
             result = candidate_llm.invoke(messages)
-            answer_text = result.content.strip() if hasattr(result, "content") else str(result).strip()
+            raw_content = getattr(result, "content", result)
+            extracted_text = extract_text_from_content(raw_content)
+            if not extracted_text:
+                raise ValueError(f"Model '{model_name}' returned empty content.")
+            answer_text = extracted_text
             used_model = model_name
             break
         except Exception as exc:
             last_error = str(exc)
-            # If rate-limited, quota-exhausted, or model unavailable, try the next model
+            # If invalid API key, stop immediately without wasting retries
             if (
-                "RESOURCE_EXHAUSTED" in last_error
-                or "429" in last_error
-                or "quota" in last_error.lower()
-                or "404" in last_error
-                or "not available" in last_error.lower()
+                "API_KEY_INVALID" in last_error
+                or "invalid_api_key" in last_error.lower()
+                or "api key not valid" in last_error.lower()
             ):
-                continue
-            # For invalid API key or fatal client error, stop immediately
-            break
+                break
+            # For rate limits, quotas, 404, 503, timeouts, empty content, or transient model glitches,
+            # cascade to the next candidate model in models_to_try
+            continue
 
     if answer_text is None:
         error_msg = last_error or "LLM generation failed."

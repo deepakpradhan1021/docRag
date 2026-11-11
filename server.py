@@ -7,13 +7,14 @@ and document page inspection.
 """
 
 from datetime import datetime
+import logging
 import os
 import time
 from collections import defaultdict
 from typing import Optional
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -39,12 +40,28 @@ from src.pdf_processing import (
 )
 from src.rag_pipeline import answer_question
 
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("docRag")
+
 # Create FastAPI app
 app = FastAPI(
     title=f"{APP_NAME} API",
     description=APP_DESCRIPTION,
     version="1.0.0",
 )
+
+# Global exception handler to prevent leaking stack traces or internal details
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled server error on %s %s: %s", request.method, request.url.path, exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal error occurred. Please try again or rephrase your request."},
+    )
 
 # Enable CORS for local dev or separate Netlify deployments
 app.add_middleware(
@@ -285,6 +302,8 @@ def post_message(session_id: str, payload: SendMessageRequest, request: Request)
         for m in session.messages[:-1]
     ]
 
+    logger.info("Session %s: User question: %s", session_id, question[:80])
+
     # Run grounded RAG pipeline
     rag_resp = answer_question(
         vector_store=session.vector_store,
@@ -295,6 +314,7 @@ def post_message(session_id: str, payload: SendMessageRequest, request: Request)
     )
 
     if rag_resp.error:
+        logger.warning("Session %s: RAG error: %s", session_id, rag_resp.error)
         # Record error response
         assistant_msg = session.add_message(
             role="assistant",
@@ -312,6 +332,11 @@ def post_message(session_id: str, payload: SendMessageRequest, request: Request)
                 "is_fallback": True,
             },
         }
+
+    logger.info(
+        "Session %s: Answered with %d citations (fallback=%s)",
+        session_id, len(rag_resp.citations), rag_resp.is_fallback_answer
+    )
 
     # Record assistant message with verified source citations
     assistant_msg = session.add_message(

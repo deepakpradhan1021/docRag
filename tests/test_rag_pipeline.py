@@ -99,6 +99,106 @@ class TestRAGPipeline(unittest.TestCase):
         citations = extract_and_validate_citations(fallback_answer, source_map)
         self.assertEqual(len(citations), 0)
 
+    def test_extract_text_from_content_variants(self):
+        from src.rag_pipeline import extract_text_from_content
+
+        # Plain string
+        self.assertEqual(extract_text_from_content("  Hello World  "), "Hello World")
+        # List of strings
+        self.assertEqual(extract_text_from_content(["Section 1", "Section 2"]), "Section 1\n\nSection 2")
+        # List of dicts (LangChain block format)
+        self.assertEqual(
+            extract_text_from_content([{"type": "text", "text": "Part A"}, {"type": "text", "text": "Part B"}]),
+            "Part A\n\nPart B"
+        )
+        # Empty list & None
+        self.assertEqual(extract_text_from_content([]), "")
+        self.assertEqual(extract_text_from_content(None), "")
+
+    def test_llm_list_content_regression_executive_summary(self):
+        """
+        Regression test for production bug:
+        LLM generation failed: 'list' object has no attribute 'strip'
+        Verifies that AIMessage with list content blocks does not raise AttributeError.
+        """
+        from langchain_core.messages import AIMessage
+        from src.vector_store import create_vector_store
+
+        vs = create_vector_store(self.sample_chunks)
+
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = AIMessage(
+            content=[
+                {
+                    "type": "text",
+                    "text": "Executive Summary: Sentence Transformers use Siamese networks [Source 1].",
+                    "extras": {"signature": "abc"}
+                }
+            ]
+        )
+
+        with patch("src.rag_pipeline.ChatGoogleGenerativeAI", return_value=mock_llm):
+            with patch("src.rag_pipeline.get_gemini_api_key", return_value="AIzaSy_fake_test_key"):
+                response = answer_question(
+                    vector_store=vs,
+                    question="Provide a clear, high-level executive summary of the attached document.",
+                )
+
+        self.assertIsNone(response.error)
+        self.assertIn("Executive Summary:", response.answer)
+        self.assertEqual(len(response.citations), 1)
+        self.assertEqual(response.citations[0].source_index, 1)
+        self.assertEqual(response.citations[0].page_number, 7)
+
+    def test_llm_list_of_strings_content(self):
+        from langchain_core.messages import AIMessage
+        from src.vector_store import create_vector_store
+
+        vs = create_vector_store(self.sample_chunks)
+
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = AIMessage(
+            content=["FAISS scales to billions of vectors ", "using inverted indexes [Source 1]."]
+        )
+
+        with patch("src.rag_pipeline.ChatGoogleGenerativeAI", return_value=mock_llm):
+            with patch("src.rag_pipeline.get_gemini_api_key", return_value="AIzaSy_fake_test_key"):
+                response = answer_question(
+                    vector_store=vs,
+                    question="How does FAISS scale?",
+                )
+
+        self.assertIsNone(response.error)
+        self.assertIn("FAISS scales to billions", response.answer)
+        self.assertEqual(len(response.citations), 1)
+        self.assertEqual(response.citations[0].source_index, 1)
+        self.assertEqual(response.citations[0].page_number, 7)
+
+    def test_model_fallback_on_transient_error(self):
+        """Verifies that transient model errors trigger automatic cascade to candidate models."""
+        from langchain_core.messages import AIMessage
+        from src.vector_store import create_vector_store
+
+        vs = create_vector_store(self.sample_chunks)
+
+        mock_failing_llm = MagicMock()
+        mock_failing_llm.invoke.side_effect = Exception("503 Service Unavailable: High load")
+
+        mock_working_llm = MagicMock()
+        mock_working_llm.invoke.return_value = AIMessage(
+            content="Grounded answer from fallback model [Source 1]."
+        )
+
+        with patch("src.rag_pipeline.ChatGoogleGenerativeAI", side_effect=[mock_failing_llm, mock_working_llm]):
+            with patch("src.rag_pipeline.get_gemini_api_key", return_value="AIzaSy_fake_test_key"):
+                response = answer_question(
+                    vector_store=vs,
+                    question="Tell me about Siamese networks.",
+                )
+
+        self.assertIsNone(response.error)
+        self.assertIn("Grounded answer from fallback model", response.answer)
+
 
 if __name__ == "__main__":
     unittest.main()
