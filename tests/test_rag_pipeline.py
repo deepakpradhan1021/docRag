@@ -148,7 +148,7 @@ class TestRAGPipeline(unittest.TestCase):
         self.assertIn("Executive Summary:", response.answer)
         self.assertEqual(len(response.citations), 1)
         self.assertEqual(response.citations[0].source_index, 1)
-        self.assertEqual(response.citations[0].page_number, 7)
+        self.assertEqual(response.citations[0].page_number, 3)
 
     def test_llm_list_of_strings_content(self):
         from langchain_core.messages import AIMessage

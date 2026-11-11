@@ -309,16 +309,16 @@ function setupEventListeners() {
     });
   }
 
-  // Chip buttons click in Hero
-  document.querySelectorAll(".chip-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const prompt = btn.getAttribute("data-prompt");
-      if (chatTextarea) {
-        chatTextarea.value = prompt;
-        updateSendButtonState();
-        handleSendMessage();
-      }
-    });
+  // Universal Click delegation for Suggestion Chips (Hero & Document Ready Card)
+  document.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip-btn, .suggestion-chip");
+    if (!chip) return;
+    const prompt = chip.getAttribute("data-prompt");
+    if (prompt && chatTextarea) {
+      chatTextarea.value = prompt;
+      updateSendButtonState();
+      handleSendMessage();
+    }
   });
 
   // Attach PDF Buttons (opens modal)
@@ -612,10 +612,43 @@ function renderCurrentChat() {
     });
   }
 
-  // Render Messages or Hero
+  // Render Messages, Document Ready State, or Hero
   if (!currentChatData.messages || currentChatData.messages.length === 0) {
-    if (heroCenter) heroCenter.style.display = "block";
-    if (messagesList) messagesList.innerHTML = "";
+    if (currentChatData.documents && currentChatData.documents.length > 0) {
+      if (heroCenter) heroCenter.style.display = "none";
+      if (messagesList) {
+        messagesList.innerHTML = "";
+        const docNames = currentChatData.documents.map(d => `${d.file_name} (${d.total_pages}p)`).join(", ");
+        const welcomeCard = document.createElement("div");
+        welcomeCard.className = "doc-ready-card";
+        welcomeCard.innerHTML = `
+          <div style="background: var(--bg-card); border: 1px solid rgba(168, 85, 247, 0.35); border-radius: 14px; padding: 22px 20px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); max-width: 680px; margin: 24px auto 0 auto; text-align: center;">
+            <div style="font-size: 28px; margin-bottom: 8px;">📄</div>
+            <h3 style="font-size: 16px; margin: 0 0 6px 0; color: var(--text-main);">Document Ready</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px 0;">
+              Indexed <strong style="color: var(--accent-purple);">${escapeHtml(docNames)}</strong>. Click any prompt below to query immediately:
+            </p>
+            <div style="font-size: 12.5px; font-weight: 600; color: var(--accent-purple); margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span>✨</span> Try asking:
+            </div>
+            <div class="chip-row" style="margin-bottom: 0;">
+              <button class="chip-btn" data-prompt="Summarize this document."><span>📄</span> Summarize this document</button>
+              <button class="chip-btn" data-prompt="What are the main topics?"><span>📌</span> Main topics</button>
+              <button class="chip-btn" data-prompt="Explain this document in simple words."><span>💡</span> In simple words</button>
+              <button class="chip-btn" data-prompt="What are the important definitions?"><span>📖</span> Important definitions</button>
+              <button class="chip-btn" data-prompt="Give me the key points."><span>🎯</span> Key points</button>
+              <button class="chip-btn" data-prompt="Explain the most important concepts."><span>🧠</span> Important concepts</button>
+              <button class="chip-btn" data-prompt="What are the advantages and disadvantages?"><span>⚖️</span> Pros & cons</button>
+              <button class="chip-btn" data-prompt="Generate short study notes."><span>📝</span> Study notes</button>
+            </div>
+          </div>
+        `;
+        messagesList.appendChild(welcomeCard);
+      }
+    } else {
+      if (heroCenter) heroCenter.style.display = "block";
+      if (messagesList) messagesList.innerHTML = "";
+    }
   } else {
     if (heroCenter) heroCenter.style.display = "none";
     if (messagesList) {

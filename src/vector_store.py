@@ -27,6 +27,71 @@ from src.config import (
 )
 
 
+# Common acronyms, abbreviations, and synonym mappings to bridge user queries with document terminology
+COMMON_SYNONYMS_AND_ACRONYMS: dict[str, list[str]] = {
+    # Technical & domain acronyms
+    "ml": ["machine learning"],
+    "ai": ["artificial intelligence"],
+    "nlp": ["natural language processing"],
+    "llm": ["large language model", "language model"],
+    "llms": ["large language models", "language models"],
+    "dl": ["deep learning"],
+    "cv": ["computer vision"],
+    "rag": ["retrieval augmented generation"],
+    "api": ["application programming interface"],
+    "apis": ["application programming interfaces"],
+    "ui": ["user interface"],
+    "ux": ["user experience"],
+    "sla": ["service level agreement"],
+    "slas": ["service level agreements"],
+    "qa": ["quality assurance"],
+    "csat": ["customer satisfaction"],
+    "kpi": ["key performance indicator"],
+    "kpis": ["key performance indicators"],
+    "db": ["database"],
+    "sql": ["structured query language"],
+    "faq": ["frequently asked questions"],
+    "pr": ["pull request"],
+    "dev": ["developer", "development"],
+    "prod": ["production"],
+    
+    # Conversational intent synonyms
+    "advantages": ["benefits", "pros", "strengths", "value"],
+    "advantage": ["benefit", "pro", "strength"],
+    "disadvantages": ["drawbacks", "cons", "limitations", "risks"],
+    "disadvantage": ["drawback", "con", "limitation", "risk"],
+    "author": ["creator", "written by", "prepared by", "owner"],
+    "authors": ["creators", "writers", "team"],
+    "topics": ["sections", "chapters", "themes", "subjects"],
+    "topic": ["section", "theme", "subject"],
+    "define": ["definition", "meaning", "what is"],
+    "definitions": ["meanings", "terms", "glossary"],
+    "notes": ["summary", "overview", "key points", "takeaways"],
+}
+
+
+def expand_query(query: str) -> str:
+    """
+    Expand user query with common acronyms and synonyms to bridge the vocabulary gap
+    between user questions and document text (e.g. 'What is ML?' -> 'What is ML? machine learning').
+    """
+    if not query:
+        return ""
+    q_lower = query.lower()
+    words = re.findall(r"\b[a-zA-Z0-9_\-\$]+\b", q_lower)
+
+    expansions: list[str] = []
+    for w in words:
+        if w in COMMON_SYNONYMS_AND_ACRONYMS:
+            expansions.extend(COMMON_SYNONYMS_AND_ACRONYMS[w])
+
+    if expansions:
+        seen = set()
+        unique_exp = [e for e in expansions if not (e in seen or seen.add(e))]
+        return f"{query.strip()} {' '.join(unique_exp)}"
+    return query.strip()
+
+
 class MemorySafeVectorStore:
     """
     Lightweight, deterministic in-memory vector & keyword retriever.
@@ -59,10 +124,10 @@ class MemorySafeVectorStore:
             for t, freq in self.df.items()
         }
 
-        # 2. Sublinear character n-gram matrix for robust fuzzy matching
+        # 2. Sublinear character n-gram matrix (ngram_range 2-4 captures 2-letter acronyms like ml, ai, qa)
         self.char_vectorizer = TfidfVectorizer(
             analyzer="char_wb",
-            ngram_range=(3, 4),
+            ngram_range=(2, 4),
             sublinear_tf=True,
         )
         self.char_matrix = self.char_vectorizer.fit_transform([d.page_content for d in documents])
@@ -77,13 +142,14 @@ class MemorySafeVectorStore:
         k: int = RETRIEVAL_TOP_K,
     ) -> list[tuple[Document, float]]:
         """
-        Rank chunks by hybrid BM25 + sublinear character similarity.
+        Rank chunks by hybrid BM25 + sublinear character similarity with query expansion.
         Returns list of (Document, distance) tuples (lower distance = closer match).
         """
         if not query or not query.strip():
             return []
 
-        q_tokens = self._tokenize(query)
+        expanded_query = expand_query(query)
+        q_tokens = self._tokenize(expanded_query)
 
         # Compute BM25 scores
         bm25_scores = np.zeros(self.corpus_size)
@@ -102,8 +168,8 @@ class MemorySafeVectorStore:
         max_bm25 = np.max(bm25_scores) if np.max(bm25_scores) > 0 else 1.0
         norm_bm25 = bm25_scores / max_bm25
 
-        # Compute character cosine similarity
-        q_char = self.char_vectorizer.transform([query])
+        # Compute character cosine similarity on expanded query
+        q_char = self.char_vectorizer.transform([expanded_query])
         char_sims = cosine_similarity(q_char, self.char_matrix).flatten()
 
         # Hybrid fusion: 65% BM25 term weighting + 35% character n-gram context
@@ -204,4 +270,49 @@ def retrieve_relevant_chunks(
         if distance <= score_threshold:
             filtered_docs.append(doc)
 
+    # Graceful fallback: if distance threshold was too strict but results exist,
+    # preserve top candidate chunks rather than returning empty and blinding the LLM
+    if not filtered_docs and results_with_scores:
+        filtered_docs = [doc for doc, _ in results_with_scores[:min(2, len(results_with_scores))]]
+
     return filtered_docs
+
+
+def get_document_summary_chunks(
+    vector_store: MemorySafeVectorStore,
+    max_chunks: int = 8,
+) -> list[Document]:
+    """
+    Extract representative chunks spanning the entire document:
+    beginning / introduction, evenly distributed middle sections, and concluding sections.
+    This guarantees comprehensive document coverage for summarization queries without
+    relying on keyword similarity.
+    """
+    if not hasattr(vector_store, "documents") or not vector_store.documents:
+        return []
+
+    docs = vector_store.documents
+    total = len(docs)
+    if total <= max_chunks:
+        return list(docs)
+
+    if max_chunks <= 1:
+        return [docs[0]]
+    if max_chunks == 2:
+        return [docs[0], docs[total - 1]]
+
+    # Evenly distribute indices across the entire document from start to end
+    step = (total - 1) / (max_chunks - 1)
+    chosen_indices = sorted(list({int(round(i * step)) for i in range(max_chunks)}))
+
+    # If rounding produced duplicates, backfill missing slots
+    candidate = 0
+    while len(chosen_indices) < max_chunks and candidate < total:
+        if candidate not in chosen_indices:
+            chosen_indices.append(candidate)
+            chosen_indices.sort()
+        candidate += 1
+
+    return [docs[i] for i in chosen_indices[:max_chunks]]
+
+
