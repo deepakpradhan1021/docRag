@@ -84,14 +84,28 @@ async function initApp() {
   if (userApiKey && apiKeyInput) apiKeyInput.value = userApiKey;
   if (customApiBase && apiBaseInput) apiBaseInput.value = customApiBase;
 
-  updateConnectionStatusUI("Waking up server, please wait ~45 s", false);
+  updateConnectionStatusUI("Connecting to server...", false);
   if (currentModelLabel) {
-    currentModelLabel.innerText = "Waking up server, please wait ~45 s";
+    currentModelLabel.innerText = "Connecting to server...";
   }
 
   await checkServerHealth();
-  await loadServerConfig();
-  await loadChatList();
+  if (isServerOnline) {
+    await loadServerConfig();
+    await loadChatList();
+  }
+
+  // Automatic background polling: if server was sleeping on initial visit,
+  // automatically check every 3s so the UI instantly flips to "Server Ready" without manual refresh!
+  setInterval(async () => {
+    if (!isServerOnline) {
+      await checkServerHealth();
+      if (isServerOnline) {
+        await loadServerConfig();
+        await loadChatList();
+      }
+    }
+  }, 3000);
 }
 
 // --- Live Status UI Helpers ---
@@ -189,40 +203,22 @@ function showOfflineBanner() {
       <button id="retryConnBtn" style="background: white; color: #c2410c; border: none; padding: 4px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;">Check Again</button>
     `;
     document.body.prepend(banner);
-      color: white;
-      padding: 10px 20px;
-      font-size: 13px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-      z-index: 1000;
-      position: sticky;
-      top: 0;
-    `;
-    banner.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #fef08a;"></span>
-        <span>The document service is waking up (~30-45s cold start)... Please wait a moment.</span>
-      </div>
-      <button id="retryConnBtn" style="background: white; color: #c2410c; border: none; padding: 4px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;">Check Again</button>
-    `;
-    document.body.prepend(banner);
 
-    document.getElementById("retryConnBtn").addEventListener("click", async () => {
-      const btn = document.getElementById("retryConnBtn");
-      btn.innerText = "Checking...";
-      await checkServerHealth();
-      if (isServerOnline) {
-        showToast("Connected to document intelligence backend!", "success");
-        await loadServerConfig();
-        await loadChatList();
-      } else {
-        showToast("Service is still waking up... Please wait a few seconds and retry.", "info");
-      }
-      btn.innerText = "Check Again";
-    });
+    const retryBtn = document.getElementById("retryConnBtn");
+    if (retryBtn) {
+      retryBtn.addEventListener("click", async () => {
+        retryBtn.innerText = "Checking...";
+        await checkServerHealth();
+        if (isServerOnline) {
+          showToast("Connected to document intelligence backend!", "success");
+          await loadServerConfig();
+          await loadChatList();
+        } else {
+          showToast("Service is still waking up... Please wait a few seconds and retry.", "info");
+        }
+        retryBtn.innerText = "Check Again";
+      });
+    }
   }
 }
 
