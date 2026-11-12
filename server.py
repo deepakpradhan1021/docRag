@@ -210,6 +210,17 @@ def delete_chat(session_id: str, request: Request):
     return {"status": "success", "active_session_id": session_manager.active_session_id}
 
 
+@app.post("/api/chats/{session_id}/clear")
+def clear_chat_messages(session_id: str, request: Request):
+    """Clear message history for a chat session while keeping indexed documents."""
+    owner_id = get_owner_id_from_request(request)
+    session = session_manager.get_session(session_id, owner_id=owner_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    session.clear_messages()
+    return {"status": "success", "chat": session.to_dict()}
+
+
 @app.post("/api/chats/{session_id}/upload")
 async def upload_documents(session_id: str, request: Request, files: list[UploadFile] = File(...)):
     """Upload one or multiple PDF documents into a chat session."""

@@ -1,6 +1,7 @@
 /**
- * docRag Client Application
- * Pure Vanilla JavaScript — clean, responsive, robust, and accessible.
+ * DocRAG Client Application
+ * Premium AI Document Assistant Frontend
+ * Pure Vanilla JavaScript — fast, responsive, robust, and accessible.
  */
 
 // --- Dynamic API Base Resolution ---
@@ -12,14 +13,14 @@ const API_BASE = customApiBase || ((isLocalFile || isNetlify) ? "https://docrag-
 // --- State ---
 let currentSessionId = null;
 let currentChatData = null;
+let cachedSessions = [];
 
-// Clean up any stale keys from older localStorage implementations
+// Session-only storage: In memory for this browser tab only (cleared on tab close)
 if (typeof localStorage !== "undefined" && localStorage.getItem("docRag_apiKey")) {
   localStorage.removeItem("docRag_apiKey");
 }
-
-// Session-only storage: In memory for this browser tab only (cleared on tab close)
 let userApiKey = typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("docRag_apiKey") || "") : "";
+
 let isServerOnline = false;
 let isHealthChecking = false;
 let isSending = false;
@@ -34,145 +35,403 @@ if (!browserOwnerId) {
 }
 
 // --- DOM Elements ---
+const sidebar = document.getElementById("sidebar");
+const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+const toggleSidebarBtn = document.getElementById("toggleSidebarBtn");
+const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+const newChatBtn = document.getElementById("newChatBtn");
 const chatListContainer = document.getElementById("chatListContainer");
 const sidebarDocList = document.getElementById("sidebarDocList");
-const newChatBtn = document.getElementById("newChatBtn");
-const toggleSidebarBtn = document.getElementById("toggleSidebarBtn");
-const sidebar = document.getElementById("sidebar");
+const sidebarAttachBtn = document.getElementById("sidebarAttachBtn");
+const sidebarStatusDot = document.getElementById("sidebarStatusDot");
+const backendStatusPill = document.getElementById("backendStatusPill");
+
+const navChatTitle = document.getElementById("navChatTitle");
+const headerStatusBadge = document.getElementById("headerStatusBadge");
+const headerStatusDot = document.getElementById("headerStatusDot");
+const headerStatusText = document.getElementById("headerStatusText");
+
+const threeDotBtn = document.getElementById("threeDotBtn");
+const threeDotMenu = document.getElementById("threeDotMenu");
+const menuInspectorBtn = document.getElementById("menuInspectorBtn");
+const menuExportBtn = document.getElementById("menuExportBtn");
+const menuClearChatBtn = document.getElementById("menuClearChatBtn");
+const menuSettingsBtn = document.getElementById("menuSettingsBtn");
+const menuAboutBtn = document.getElementById("menuAboutBtn");
 
 const chatScrollArea = document.getElementById("chatScrollArea");
 const heroCenter = document.getElementById("heroCenter");
+const hero3DCanvas = document.getElementById("hero3DCanvas");
+const heroStartChatBtn = document.getElementById("heroStartChatBtn");
+const heroUploadPdfBtn = document.getElementById("heroUploadPdfBtn");
+const cardAttachPdf = document.getElementById("cardAttachPdf");
 const messagesList = document.getElementById("messagesList");
-const chatTextarea = document.getElementById("chatTextarea");
-const sendBtn = document.getElementById("sendBtn");
+
 const activeDocsBar = document.getElementById("activeDocsBar");
-const backendStatusPill = document.getElementById("backendStatusPill");
-const currentModelLabel = document.getElementById("currentModelLabel");
-const backendConnectionNote = document.getElementById("backendConnectionNote");
+const chatTextarea = document.getElementById("chatTextarea");
+const attachBtn = document.getElementById("attachBtn");
+const sendBtn = document.getElementById("sendBtn");
 
 // Modals
 const uploadModal = document.getElementById("uploadModal");
-const attachBtn = document.getElementById("attachBtn");
 const closeUploadModalBtn = document.getElementById("closeUploadModalBtn");
 const dropzone = document.getElementById("dropzone");
 const fileInput = document.getElementById("fileInput");
+const browseFilesBtn = document.getElementById("browseFilesBtn");
 const uploadStatusText = document.getElementById("uploadStatusText");
 
 const inspectorModal = document.getElementById("inspectorModal");
-const openInspectorBtn = document.getElementById("openInspectorBtn");
-const quickInspectBtn = document.getElementById("quickInspectBtn");
 const closeInspectorModalBtn = document.getElementById("closeInspectorModalBtn");
 const inspectDocSelect = document.getElementById("inspectDocSelect");
 const inspectPageSelect = document.getElementById("inspectPageSelect");
 const inspectTextarea = document.getElementById("inspectTextarea");
 
 const settingsModal = document.getElementById("settingsModal");
-const settingsBtn = document.getElementById("settingsBtn");
 const closeSettingsModalBtn = document.getElementById("closeSettingsModalBtn");
 const apiKeyInput = document.getElementById("apiKeyInput");
 const apiBaseInput = document.getElementById("apiBaseInput");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 const clearApiKeyBtn = document.getElementById("clearApiKeyBtn");
-const exportBtn = document.getElementById("exportBtn");
+const backendConnectionNote = document.getElementById("backendConnectionNote");
 
-// Track modal trigger element for focus restoration
+const aboutModal = document.getElementById("aboutModal");
+const closeAboutModalBtn = document.getElementById("closeAboutModalBtn");
+
 let lastFocusedElement = null;
 
-// --- Initialization ---
+// --- 3D Futuristic Hero Canvas Animation ---
+let heroAnimationId = null;
+let heroAnimRunning = false;
+
+function init3DHeroCanvas() {
+  if (!hero3DCanvas) return;
+  const ctx = hero3DCanvas.getContext("2d");
+  if (!ctx) return;
+
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let width = 480;
+  let height = 150;
+  let dpr = window.devicePixelRatio || 1;
+
+  function resizeCanvas() {
+    const parent = hero3DCanvas.parentElement;
+    const parentW = parent ? parent.clientWidth : 0;
+    const parentH = parent ? parent.clientHeight : 0;
+    width = Math.max(parentW || 0, 320);
+    height = Math.max(parentH || 0, 140);
+    hero3DCanvas.width = width * dpr;
+    hero3DCanvas.height = height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  resizeCanvas();
+  setTimeout(resizeCanvas, 50);
+  setTimeout(resizeCanvas, 200);
+
+  window.addEventListener("resize", () => {
+    dpr = window.devicePixelRatio || 1;
+    resizeCanvas();
+    if (prefersReducedMotion) renderFrame();
+  });
+
+  // 3D Polyhedron geometry: 12 vertices of an icosahedron
+  const phi = (1 + Math.sqrt(5)) / 2;
+  const rawVertices = [
+    [-1,  phi, 0], [ 1,  phi, 0], [-1, -phi, 0], [ 1, -phi, 0],
+    [ 0, -1,  phi], [ 0,  1,  phi], [ 0, -1, -phi], [ 0,  1, -phi],
+    [ phi, 0, -1], [ phi, 0,  1], [-phi, 0, -1], [-phi, 0,  1]
+  ];
+
+  // Normalize vertices to radius R
+  const R = 34;
+  const baseVertices = rawVertices.map(v => {
+    const len = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    return [ (v[0] / len) * R, (v[1] / len) * R, (v[2] / len) * R ];
+  });
+
+  // Edges connecting nearby vertices
+  const edges = [];
+  for (let i = 0; i < baseVertices.length; i++) {
+    for (let j = i + 1; j < baseVertices.length; j++) {
+      const dx = baseVertices[i][0] - baseVertices[j][0];
+      const dy = baseVertices[i][1] - baseVertices[j][1];
+      const dz = baseVertices[i][2] - baseVertices[j][2];
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist < R * 1.15) {
+        edges.push([i, j]);
+      }
+    }
+  }
+
+  // Floating orbiting particles / shards
+  const numParticles = 24;
+  const particles = [];
+  for (let p = 0; p < numParticles; p++) {
+    const theta = Math.random() * Math.PI * 2;
+    const rad = 45 + Math.random() * 70;
+    particles.push({
+      x: Math.cos(theta) * rad,
+      y: (Math.random() - 0.5) * 50,
+      z: Math.sin(theta) * rad,
+      radius: 1.4 + Math.random() * 2.0,
+      speed: 0.005 + Math.random() * 0.009,
+      floatOffset: Math.random() * Math.PI * 2,
+      floatSpeed: 0.02 + Math.random() * 0.02,
+      color: Math.random() > 0.4 ? "#a855f7" : "#818cf8"
+    });
+  }
+
+  let angleX = 0.2;
+  let angleY = 0;
+  let targetAngleX = 0.2;
+  let targetAngleY = 0;
+
+  // Gentle mouse parallax
+  window.addEventListener("mousemove", (e) => {
+    const nx = (e.clientX / window.innerWidth) - 0.5;
+    const ny = (e.clientY / window.innerHeight) - 0.5;
+    targetAngleY = nx * 0.8;
+    targetAngleX = 0.2 + ny * 0.5;
+  }, { passive: true });
+
+  let time = 0;
+
+  function renderFrame() {
+    if (!heroAnimRunning && !prefersReducedMotion) return;
+
+    // Check if hero is hidden or tab in background
+    if (document.hidden || (heroCenter && heroCenter.style.display === "none")) {
+      heroAnimRunning = false;
+      return;
+    }
+
+    ctx.clearRect(0, 0, width, height);
+
+    const cx = width / 2;
+    const cy = height / 2;
+    const fl = 240; // Focal length
+
+    if (!prefersReducedMotion) {
+      time += 0.016;
+      angleY += 0.008;
+      // Damped lerp toward mouse target
+      angleX += (targetAngleX - angleX) * 0.05;
+      angleY += (targetAngleY - 0) * 0.02;
+    }
+
+    const cosX = Math.cos(angleX);
+    const sinX = Math.sin(angleX);
+    const cosY = Math.cos(angleY);
+    const sinY = Math.sin(angleY);
+
+    // Subtle breathing / floating scale
+    const breath = 1 + Math.sin(time * 1.5) * 0.04;
+
+    // Central glowing core
+    const coreGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 38 * breath);
+    coreGrad.addColorStop(0, "rgba(233, 213, 255, 0.95)");
+    coreGrad.addColorStop(0.3, "rgba(168, 85, 247, 0.55)");
+    coreGrad.addColorStop(0.7, "rgba(99, 102, 241, 0.2)");
+    coreGrad.addColorStop(1, "rgba(7, 8, 20, 0)");
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 38 * breath, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Project polyhedron vertices
+    const projected = baseVertices.map(([bx, by, bz]) => {
+      // Scale
+      const sx = bx * breath;
+      const sy = by * breath;
+      const sz = bz * breath;
+
+      // Rotate Y
+      const x1 = sx * cosY + sz * sinY;
+      const y1 = sy;
+      const z1 = -sx * sinY + sz * cosY;
+
+      // Rotate X
+      const x2 = x1;
+      const y2 = y1 * cosX - z1 * sinX;
+      const z2 = y1 * sinX + z1 * cosX;
+
+      // Project
+      const scale = fl / (fl + z2 + 100);
+      return {
+        x: cx + x2 * scale,
+        y: cy + y2 * scale,
+        z: z2,
+        scale
+      };
+    });
+
+    // Draw polyhedron edges
+    ctx.lineWidth = 1.3;
+    edges.forEach(([i, j]) => {
+      const p1 = projected[i];
+      const p2 = projected[j];
+      const avgZ = (p1.z + p2.z) / 2;
+      const alpha = Math.max(0.15, Math.min(0.75, (avgZ + R) / (2 * R)));
+
+      const edgeGrad = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y);
+      edgeGrad.addColorStop(0, `rgba(168, 85, 247, ${alpha})`);
+      edgeGrad.addColorStop(1, `rgba(99, 102, 241, ${alpha * 0.85})`);
+
+      ctx.strokeStyle = edgeGrad;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    });
+
+    // Draw vertices glowing points
+    projected.forEach(p => {
+      const pointAlpha = Math.max(0.3, Math.min(1, (p.z + R) / (2 * R)));
+      ctx.fillStyle = `rgba(243, 232, 255, ${pointAlpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.4 * p.scale, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Draw floating orbiting particles & dust
+    particles.forEach(pt => {
+      if (!prefersReducedMotion) {
+        pt.floatOffset += pt.floatSpeed;
+      }
+      const py = pt.y + Math.sin(pt.floatOffset) * 10;
+
+      // Rotate Y
+      const rx = pt.x * cosY + pt.z * sinY;
+      const rz = -pt.x * sinY + pt.z * cosY;
+
+      // Rotate X
+      const ry = py * cosX - rz * sinX;
+      const rzFinal = py * sinX + rz * cosX;
+
+      const scale = fl / (fl + rzFinal + 120);
+      const px = cx + rx * scale;
+      const pyFinal = cy + ry * scale;
+
+      const pAlpha = Math.max(0.2, Math.min(0.85, (rzFinal + 120) / 240));
+      ctx.fillStyle = pt.color;
+      ctx.globalAlpha = pAlpha;
+      ctx.beginPath();
+      ctx.arc(px, pyFinal, pt.radius * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    });
+
+    if (!prefersReducedMotion) {
+      heroAnimationId = requestAnimationFrame(renderFrame);
+    }
+  }
+
+  heroAnimRunning = true;
+  renderFrame();
+}
+
+function startHeroAnimation() {
+  if (heroAnimationId) cancelAnimationFrame(heroAnimationId);
+  heroAnimRunning = true;
+  init3DHeroCanvas();
+}
+
+function stopHeroAnimation() {
+  heroAnimRunning = false;
+  if (heroAnimationId) {
+    cancelAnimationFrame(heroAnimationId);
+    heroAnimationId = null;
+  }
+}
+
+// --- App Initialization ---
 async function initApp() {
   setupEventListeners();
+
   if (userApiKey && apiKeyInput) apiKeyInput.value = userApiKey;
   if (customApiBase && apiBaseInput) apiBaseInput.value = customApiBase;
 
-  updateConnectionStatusUI("Connecting to server...", false);
-  if (currentModelLabel) {
-    currentModelLabel.innerText = "Connecting to server...";
-  }
+  updateConnectionStatusUI("Connecting...", false);
+
+  // Start 3D canvas
+  startHeroAnimation();
 
   await checkServerHealth();
   if (isServerOnline) {
-    await loadServerConfig();
     await loadChatList();
+  } else {
+    // Render initial empty chat view optimistically so user never stares at blank screen
+    renderEmptyHeroState();
   }
 
-  // Automatic background polling: if server was sleeping on initial visit,
-  // automatically check every 3s so the UI instantly flips to "Server Ready" without manual refresh!
+  // Automatic background polling: check every 3.5s so when Render wakes up, it connects instantly!
   setInterval(async () => {
     if (!isServerOnline) {
       await checkServerHealth();
       if (isServerOnline) {
-        await loadServerConfig();
         await loadChatList();
       }
     }
-  }, 3000);
+  }, 3500);
+
+  // Resume 3D canvas when tab becomes visible
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && heroCenter && heroCenter.style.display !== "none") {
+      startHeroAnimation();
+    } else {
+      stopHeroAnimation();
+    }
+  });
 }
 
-// --- Live Status UI Helpers ---
+// --- Connection Status UI ---
 function updateConnectionStatusUI(statusText, isReady = false) {
   if (backendStatusPill) {
     backendStatusPill.innerText = statusText;
-    backendStatusPill.style.background = isReady ? "rgba(34, 197, 94, 0.2)" : "rgba(234, 88, 12, 0.2)";
-    backendStatusPill.style.color = isReady ? "#4ade80" : "#fb923c";
-    backendStatusPill.style.borderColor = isReady ? "rgba(74, 222, 128, 0.4)" : "rgba(251, 146, 60, 0.4)";
+  }
+  if (sidebarStatusDot) {
+    sidebarStatusDot.className = `status-dot ${isReady ? "online" : ""}`;
+  }
+  if (headerStatusDot) {
+    headerStatusDot.className = `status-dot ${isReady ? "online" : ""}`;
+  }
+  if (headerStatusText) {
+    headerStatusText.innerText = isReady ? "Connected" : "Waking up...";
   }
   if (backendConnectionNote) {
     backendConnectionNote.innerText = `Status: ${statusText}`;
   }
 }
 
-// --- Server Connection Health Check ---
+// --- Health Check ---
 async function checkServerHealth() {
   if (isHealthChecking) return;
   isHealthChecking = true;
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const res = await fetch(`${API_BASE}/api/health`, {
       method: "GET",
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
+
     if (res.ok) {
       isServerOnline = true;
       removeOfflineBanner();
-      updateConnectionStatusUI("Server Ready (Connected)", true);
+      updateConnectionStatusUI("Connected (Ready)", true);
     } else {
       isServerOnline = false;
       showOfflineBanner();
-      updateConnectionStatusUI("Free-tier backend, may take up to 45 s to wake", false);
-      if (currentModelLabel) {
-        currentModelLabel.innerText = "Waking up server, please wait ~45 s";
-      }
+      updateConnectionStatusUI("Free-tier backend waking up (~30s)", false);
     }
   } catch (err) {
     isServerOnline = false;
     showOfflineBanner();
-    updateConnectionStatusUI("Free-tier backend, may take up to 45 s to wake", false);
-    if (currentModelLabel) {
-      currentModelLabel.innerText = "Waking up server, please wait ~45 s";
-    }
+    updateConnectionStatusUI("Free-tier backend waking up (~30s)", false);
   } finally {
     isHealthChecking = false;
-  }
-}
-
-async function loadServerConfig() {
-  if (!isServerOnline) return;
-  try {
-    const res = await fetch(`${API_BASE}/api/config`);
-    if (res.ok) {
-      const data = await res.json();
-      if (currentModelLabel && data.model_name) {
-        currentModelLabel.innerText = `${data.model_name} (Grounded)`;
-      }
-      const activeModelInput = document.getElementById("activeModelSettingInput");
-      if (activeModelInput && data.model_name) {
-        activeModelInput.value = `${data.model_name} (Cascade: gemini-2.0-flash, gemini-1.5-flash)`;
-      }
-    }
-  } catch (err) {
-    console.warn("Could not load backend config:", err);
   }
 }
 
@@ -184,23 +443,23 @@ function showOfflineBanner() {
     banner.style.cssText = `
       background: linear-gradient(90deg, #ea580c 0%, #c2410c 100%);
       color: white;
-      padding: 10px 20px;
-      font-size: 13px;
+      padding: 9px 16px;
+      font-size: 12.5px;
       font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: space-between;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-      z-index: 1000;
+      z-index: 200;
       position: sticky;
       top: 0;
     `;
     banner.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #fef08a;"></span>
-        <span>Render free-tier backend is sleeping (~30-45 s cold start). Waking up server, please wait...</span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #fef08a;"></span>
+        <span>Render free-tier backend is spinning up (~30-45 s cold start). Auto-connecting...</span>
       </div>
-      <button id="retryConnBtn" style="background: white; color: #c2410c; border: none; padding: 4px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;">Check Again</button>
+      <button id="retryConnBtn" style="background: white; color: #c2410c; border: none; padding: 3px 10px; border-radius: 5px; font-weight: 700; cursor: pointer; font-size: 11.5px;">Check</button>
     `;
     document.body.prepend(banner);
 
@@ -210,13 +469,12 @@ function showOfflineBanner() {
         retryBtn.innerText = "Checking...";
         await checkServerHealth();
         if (isServerOnline) {
-          showToast("Connected to document intelligence backend!", "success");
-          await loadServerConfig();
+          showToast("Connected to DocRAG backend!", "success");
           await loadChatList();
         } else {
-          showToast("Service is still waking up... Please wait a few seconds and retry.", "info");
+          showToast("Service still warming up... Please give it a few seconds.", "info");
         }
-        retryBtn.innerText = "Check Again";
+        retryBtn.innerText = "Check";
       });
     }
   }
@@ -234,27 +492,27 @@ function showToast(message, type = "info") {
     position: fixed;
     bottom: 24px;
     right: 24px;
-    background: ${type === "error" ? "rgba(239, 68, 68, 0.95)" : type === "success" ? "rgba(34, 197, 94, 0.95)" : "rgba(30, 41, 59, 0.95)"};
-    border: 1px solid ${type === "error" ? "#f87171" : type === "success" ? "#4ade80" : "rgba(255,255,255,0.2)"};
+    background: ${type === "error" ? "rgba(239, 68, 68, 0.95)" : type === "success" ? "rgba(34, 197, 94, 0.95)" : "rgba(17, 20, 40, 0.95)"};
+    border: 1px solid ${type === "error" ? "#f87171" : type === "success" ? "#4ade80" : "rgba(168, 85, 247, 0.4)"};
     color: white;
-    padding: 12px 18px;
-    border-radius: 12px;
-    font-size: 13.5px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 13px;
     font-weight: 500;
     box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     z-index: 9999;
-    animation: fadeIn 0.25s ease;
+    animation: fadeIn 0.2s ease;
   `;
   toast.innerText = message;
   document.body.appendChild(toast);
   setTimeout(() => {
     toast.style.opacity = "0";
-    toast.style.transition = "opacity 0.3s";
-    setTimeout(() => toast.remove(), 300);
-  }, 3500);
+    toast.style.transition = "opacity 0.25s";
+    setTimeout(() => toast.remove(), 250);
+  }, 3200);
 }
 
-// --- Accessible Dialog Functions ---
+// --- Modal Helpers ---
 function openModal(modal) {
   if (!modal) return;
   lastFocusedElement = document.activeElement;
@@ -273,19 +531,109 @@ function closeModal(modal) {
 
 // --- Event Listeners Setup ---
 function setupEventListeners() {
-  // Toggle Sidebar
-  if (toggleSidebarBtn && sidebar) {
-    toggleSidebarBtn.addEventListener("click", () => {
-      sidebar.classList.toggle("collapsed");
+  // Mobile drawer toggle
+  if (mobileMenuBtn && sidebar) {
+    mobileMenuBtn.addEventListener("click", () => {
+      sidebar.classList.toggle("open");
+      document.body.classList.toggle("sidebar-open");
     });
   }
 
-  // New chat
-  if (newChatBtn) {
-    newChatBtn.addEventListener("click", createNewChat);
+  if (toggleSidebarBtn && sidebar) {
+    toggleSidebarBtn.addEventListener("click", () => {
+      sidebar.classList.remove("open");
+      document.body.classList.remove("sidebar-open");
+    });
   }
 
-  // Send message
+  if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener("click", () => {
+      sidebar.classList.remove("open");
+      document.body.classList.remove("sidebar-open");
+    });
+  }
+
+  // New Chat button (Instant optimistic response!)
+  if (newChatBtn) {
+    newChatBtn.addEventListener("click", () => {
+      createNewChat();
+      closeMobileSidebar();
+    });
+  }
+
+  // Hero CTAs
+  if (heroStartChatBtn) {
+    heroStartChatBtn.addEventListener("click", () => {
+      if (chatTextarea) chatTextarea.focus();
+    });
+  }
+
+  if (heroUploadPdfBtn) {
+    heroUploadPdfBtn.addEventListener("click", () => openModal(uploadModal));
+  }
+
+  if (cardAttachPdf) {
+    cardAttachPdf.addEventListener("click", () => openModal(uploadModal));
+  }
+
+  // Three-dot options menu
+  if (threeDotBtn && threeDotMenu) {
+    threeDotBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = threeDotMenu.classList.contains("open");
+      threeDotMenu.classList.toggle("open", !isOpen);
+      threeDotBtn.setAttribute("aria-expanded", String(!isOpen));
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!threeDotMenu.contains(e.target) && e.target !== threeDotBtn) {
+        threeDotMenu.classList.remove("open");
+        threeDotBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  // Three-dot menu actions
+  if (menuInspectorBtn) {
+    menuInspectorBtn.addEventListener("click", () => {
+      threeDotMenu.classList.remove("open");
+      openInspector();
+    });
+  }
+
+  if (menuExportBtn) {
+    menuExportBtn.addEventListener("click", () => {
+      threeDotMenu.classList.remove("open");
+      handleExport();
+    });
+  }
+
+  if (menuClearChatBtn) {
+    menuClearChatBtn.addEventListener("click", () => {
+      threeDotMenu.classList.remove("open");
+      handleClearChat();
+    });
+  }
+
+  if (menuSettingsBtn) {
+    menuSettingsBtn.addEventListener("click", () => {
+      threeDotMenu.classList.remove("open");
+      openModal(settingsModal);
+    });
+  }
+
+  if (menuAboutBtn) {
+    menuAboutBtn.addEventListener("click", () => {
+      threeDotMenu.classList.remove("open");
+      openModal(aboutModal);
+    });
+  }
+
+  if (closeAboutModalBtn) {
+    closeAboutModalBtn.addEventListener("click", () => closeModal(aboutModal));
+  }
+
+  // Composer Input
   if (sendBtn) {
     sendBtn.addEventListener("click", handleSendMessage);
   }
@@ -300,14 +648,14 @@ function setupEventListeners() {
 
     chatTextarea.addEventListener("input", () => {
       chatTextarea.style.height = "auto";
-      chatTextarea.style.height = `${Math.min(chatTextarea.scrollHeight, 120)}px`;
+      chatTextarea.style.height = `${Math.min(chatTextarea.scrollHeight, 140)}px`;
       updateSendButtonState();
     });
   }
 
-  // Universal Click delegation for Suggestion Chips (Hero & Document Ready Card)
+  // Universal Click delegation for "Try asking" Suggestion Chips
   document.addEventListener("click", (e) => {
-    const chip = e.target.closest(".chip-btn, .suggestion-chip");
+    const chip = e.target.closest(".suggestion-chip");
     if (!chip) return;
     const prompt = chip.getAttribute("data-prompt");
     if (prompt && chatTextarea) {
@@ -317,30 +665,28 @@ function setupEventListeners() {
     }
   });
 
-  // Attach PDF Buttons (opens modal)
+  // Attach PDF buttons
   if (attachBtn) {
     attachBtn.addEventListener("click", () => openModal(uploadModal));
   }
-  const sidebarAttachBtn = document.getElementById("sidebarAttachBtn");
   if (sidebarAttachBtn) {
     sidebarAttachBtn.addEventListener("click", () => openModal(uploadModal));
-  }
-  const cardAttachPdf = document.getElementById("cardAttachPdf");
-  if (cardAttachPdf) {
-    cardAttachPdf.addEventListener("click", () => openModal(uploadModal));
   }
   if (closeUploadModalBtn) {
     closeUploadModalBtn.addEventListener("click", () => closeModal(uploadModal));
   }
 
-  // Document Page Inspector Buttons
-  if (openInspectorBtn) openInspectorBtn.addEventListener("click", openInspector);
-  if (quickInspectBtn) quickInspectBtn.addEventListener("click", openInspector);
-  if (closeInspectorModalBtn) closeInspectorModalBtn.addEventListener("click", () => closeModal(inspectorModal));
+  // Inspector Modal
+  if (closeInspectorModalBtn) {
+    closeInspectorModalBtn.addEventListener("click", () => closeModal(inspectorModal));
+  }
+  if (inspectDocSelect) inspectDocSelect.addEventListener("change", updateInspectorPages);
+  if (inspectPageSelect) inspectPageSelect.addEventListener("change", updateInspectorText);
 
-  // Settings Modal Buttons
-  if (settingsBtn) settingsBtn.addEventListener("click", () => openModal(settingsModal));
-  if (closeSettingsModalBtn) closeSettingsModalBtn.addEventListener("click", () => closeModal(settingsModal));
+  // Settings Modal
+  if (closeSettingsModalBtn) {
+    closeSettingsModalBtn.addEventListener("click", () => closeModal(settingsModal));
+  }
 
   if (clearApiKeyBtn) {
     clearApiKeyBtn.addEventListener("click", () => {
@@ -391,6 +737,8 @@ function setupEventListeners() {
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       document.querySelectorAll(".modal-overlay.active").forEach(closeModal);
+      if (threeDotMenu) threeDotMenu.classList.remove("open");
+      closeMobileSidebar();
     }
   });
 
@@ -398,35 +746,33 @@ function setupEventListeners() {
   if (dropzone && fileInput) {
     dropzone.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("click", (e) => e.stopPropagation());
+
     dropzone.addEventListener("dragover", (e) => {
       e.preventDefault();
       dropzone.style.borderColor = "var(--accent-purple)";
     });
     dropzone.addEventListener("dragleave", () => {
-      dropzone.style.borderColor = "rgba(168, 85, 247, 0.4)";
+      dropzone.style.borderColor = "rgba(168, 85, 247, 0.35)";
     });
     dropzone.addEventListener("drop", (e) => {
       e.preventDefault();
-      dropzone.style.borderColor = "rgba(168, 85, 247, 0.4)";
+      dropzone.style.borderColor = "rgba(168, 85, 247, 0.35)";
       if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
         handleFilesUpload(e.dataTransfer.files);
       }
     });
+
     fileInput.addEventListener("change", () => {
       if (fileInput.files && fileInput.files.length) {
         handleFilesUpload(fileInput.files);
       }
     });
   }
+}
 
-  // Inspector dropdown changes
-  if (inspectDocSelect) inspectDocSelect.addEventListener("change", updateInspectorPages);
-  if (inspectPageSelect) inspectPageSelect.addEventListener("change", updateInspectorText);
-
-  // Export Button
-  if (exportBtn) {
-    exportBtn.addEventListener("click", handleExport);
-  }
+function closeMobileSidebar() {
+  if (sidebar) sidebar.classList.remove("open");
+  document.body.classList.remove("sidebar-open");
 }
 
 function updateSendButtonState() {
@@ -435,7 +781,7 @@ function updateSendButtonState() {
   sendBtn.disabled = !hasText || isSending;
 }
 
-// --- API Calls ---
+// --- Chat List & Session Management ---
 
 async function loadChatList() {
   try {
@@ -444,9 +790,11 @@ async function loadChatList() {
     });
     if (!res.ok) throw new Error("Server returned non-200");
     const sessions = await res.json();
+    cachedSessions = sessions;
     renderChatList(sessions);
 
     if (sessions.length > 0) {
+      // Find active or first session
       const active = sessions.find((s) => s.is_active) || sessions[0];
       await switchChat(active.session_id);
     } else {
@@ -458,13 +806,19 @@ async function loadChatList() {
     console.warn("Could not load chat list. Backend may be offline:", err);
     isServerOnline = false;
     showOfflineBanner();
+    renderEmptyHeroState();
   }
 }
 
-// Safe DOM construction preventing HTML injection in title attributes
 function renderChatList(sessions) {
   if (!chatListContainer) return;
   chatListContainer.innerHTML = "";
+
+  if (!sessions || sessions.length === 0) {
+    chatListContainer.innerHTML = `<div style="font-size: 12px; color: var(--text-dim); padding: 8px 10px;">No chats yet.</div>`;
+    return;
+  }
+
   sessions.forEach((s) => {
     const item = document.createElement("div");
     item.className = `chat-item ${s.session_id === currentSessionId ? "active" : ""}`;
@@ -498,12 +852,29 @@ function renderChatList(sessions) {
 
     item.appendChild(left);
     item.appendChild(deleteBtn);
-    item.addEventListener("click", () => switchChat(s.session_id));
+    item.addEventListener("click", () => {
+      switchChat(s.session_id);
+      closeMobileSidebar();
+    });
     chatListContainer.appendChild(item);
   });
 }
 
+// Optimized Instant "New Chat" (0ms perceived UI latency!)
 async function createNewChat() {
+  // 1. Immediately switch UI to fresh empty state
+  currentSessionId = null;
+  currentChatData = {
+    session_id: null,
+    title: "New Chat",
+    messages: [],
+    documents: [],
+  };
+  renderEmptyHeroState();
+  if (navChatTitle) navChatTitle.innerText = "New Chat";
+  if (chatTextarea) chatTextarea.focus();
+
+  // 2. Perform backend creation
   try {
     const res = await fetch(`${API_BASE}/api/chats`, {
       method: "POST",
@@ -517,18 +888,40 @@ async function createNewChat() {
     const session = await res.json();
     currentSessionId = session.session_id;
     currentChatData = session;
-    await loadChatList();
-    renderCurrentChat();
-    showToast("Started new chat session", "info");
+
+    // Prepend to cached sessions and update sidebar without extra round-trips!
+    cachedSessions = [
+      {
+        session_id: session.session_id,
+        owner_id: session.owner_id,
+        title: session.title,
+        updated_at: session.updated_at,
+        documents_count: 0,
+        messages_count: 0,
+        is_active: true,
+      },
+      ...cachedSessions.map(s => ({ ...s, is_active: false }))
+    ];
+    renderChatList(cachedSessions);
   } catch (err) {
-    showToast("The document service is temporarily unavailable. Please retry shortly.", "error");
+    showToast("Server is waking up... You can start typing or upload a PDF.", "info");
   }
 }
 
-// Race-condition guarded chat switching
+// Guarded chat switching
 async function switchChat(sessionId) {
+  if (!sessionId) return;
   const switchRequestId = ++activeChatSwitchRequestId;
   currentSessionId = sessionId;
+
+  // Immediate sidebar UI highlight
+  document.querySelectorAll(".chat-item").forEach((el) => el.classList.remove("active"));
+  const items = chatListContainer ? chatListContainer.querySelectorAll(".chat-item") : [];
+  items.forEach((item) => {
+    if (item.querySelector(".chat-item-left span")?.textContent === currentChatData?.title) {
+      item.classList.add("active");
+    }
+  });
 
   try {
     const res = await fetch(`${API_BASE}/api/chats/${sessionId}`, {
@@ -537,24 +930,18 @@ async function switchChat(sessionId) {
     if (!res.ok) throw new Error("Failed to load session");
     const chatData = await res.json();
 
-    // Discard stale responses if user switched chats again while request was in-flight
     if (switchRequestId !== activeChatSwitchRequestId) return;
 
     currentChatData = chatData;
+    if (navChatTitle) navChatTitle.innerText = chatData.title || "DocRAG Workspace";
     renderCurrentChat();
-
-    // Update active highlight in sidebar
-    document.querySelectorAll(".chat-item").forEach((el) => el.classList.remove("active"));
-    const activeItem = [...chatListContainer.children].find((el) =>
-      el.textContent.includes(chatData.title)
-    );
-    if (activeItem) activeItem.classList.add("active");
+    renderChatList(cachedSessions.map(s => ({ ...s, is_active: s.session_id === sessionId })));
   } catch (err) {
     console.error("Failed to switch chat:", err);
   }
 }
 
-// Explicit status code check on chat deletion
+// Delete chat
 async function deleteChat(sessionId) {
   if (!confirm("Are you sure you want to delete this chat session?")) return;
   try {
@@ -562,31 +949,82 @@ async function deleteChat(sessionId) {
       method: "DELETE",
       headers: { "x-owner-id": browserOwnerId },
     });
-    if (!res.ok) {
-      throw new Error("Server rejected deletion");
-    }
+    if (!res.ok) throw new Error("Server rejected deletion");
+
     showToast("Chat deleted", "info");
-    await loadChatList();
+    cachedSessions = cachedSessions.filter(s => s.session_id !== sessionId);
+
+    if (currentSessionId === sessionId) {
+      if (cachedSessions.length > 0) {
+        await switchChat(cachedSessions[0].session_id);
+      } else {
+        await createNewChat();
+      }
+    } else {
+      renderChatList(cachedSessions);
+    }
   } catch (err) {
     showToast("Could not delete chat session.", "error");
   }
 }
 
+// Clear messages in current conversation
+async function handleClearChat() {
+  if (!currentSessionId) {
+    showToast("No active conversation to clear.", "info");
+    return;
+  }
+  if (!confirm("Clear message history for this chat? Attached documents will be kept.")) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/chats/${currentSessionId}/clear`, {
+      method: "POST",
+      headers: { "x-owner-id": browserOwnerId },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      currentChatData = data.chat;
+      renderCurrentChat();
+      showToast("Conversation cleared", "info");
+    } else {
+      showToast("Could not clear conversation.", "error");
+    }
+  } catch (err) {
+    showToast("Service temporarily unavailable.", "error");
+  }
+}
+
+// --- Render Chat State ---
+
+function renderEmptyHeroState() {
+  if (heroCenter) heroCenter.style.display = "flex";
+  startHeroAnimation();
+  if (messagesList) messagesList.innerHTML = "";
+  if (activeDocsBar) activeDocsBar.style.display = "none";
+  if (sidebarDocList) {
+    sidebarDocList.innerHTML = `<div class="sidebar-empty-docs">No PDFs in this chat.</div>`;
+  }
+}
+
 function renderCurrentChat() {
-  if (!currentChatData) return;
+  if (!currentChatData) {
+    renderEmptyHeroState();
+    return;
+  }
 
   // Render Documents in sidebar and active docs pill bar
   if (sidebarDocList) sidebarDocList.innerHTML = "";
   if (activeDocsBar) activeDocsBar.innerHTML = "";
 
-  if (!currentChatData.documents || currentChatData.documents.length === 0) {
+  const docs = currentChatData.documents || [];
+  if (docs.length === 0) {
     if (sidebarDocList) {
-      sidebarDocList.innerHTML = `<div style="font-size: 12px; color: var(--text-dim); padding: 8px 10px;">No PDFs in this chat.</div>`;
+      sidebarDocList.innerHTML = `<div class="sidebar-empty-docs">No PDFs in this chat.</div>`;
     }
     if (activeDocsBar) activeDocsBar.style.display = "none";
   } else {
     if (activeDocsBar) activeDocsBar.style.display = "flex";
-    currentChatData.documents.forEach((doc) => {
+    docs.forEach((doc) => {
       // Sidebar pill
       if (sidebarDocList) {
         const docDiv = document.createElement("div");
@@ -602,54 +1040,55 @@ function renderCurrentChat() {
       if (activeDocsBar) {
         const tagDiv = document.createElement("div");
         tagDiv.className = "active-doc-tag";
-        tagDiv.innerHTML = `📄 ${escapeHtml(doc.file_name)} <span style="opacity: 0.6;">(${doc.total_pages}p)</span>`;
+        tagDiv.innerHTML = `📄 ${escapeHtml(doc.file_name)} <span style="opacity: 0.65;">(${doc.total_pages}p)</span>`;
         activeDocsBar.appendChild(tagDiv);
       }
     });
   }
 
   // Render Messages, Document Ready State, or Hero
-  if (!currentChatData.messages || currentChatData.messages.length === 0) {
-    if (currentChatData.documents && currentChatData.documents.length > 0) {
+  const messages = currentChatData.messages || [];
+  if (messages.length === 0) {
+    if (docs.length > 0) {
+      // Document is indexed and ready!
       if (heroCenter) heroCenter.style.display = "none";
+      stopHeroAnimation();
       if (messagesList) {
         messagesList.innerHTML = "";
-        const docNames = currentChatData.documents.map(d => `${d.file_name} (${d.total_pages}p)`).join(", ");
+        const docNames = docs.map(d => `${d.file_name} (${d.total_pages}p)`).join(", ");
         const welcomeCard = document.createElement("div");
         welcomeCard.className = "doc-ready-card";
         welcomeCard.innerHTML = `
-          <div style="background: var(--bg-card); border: 1px solid rgba(168, 85, 247, 0.35); border-radius: 14px; padding: 22px 20px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); max-width: 680px; margin: 24px auto 0 auto; text-align: center;">
-            <div style="font-size: 28px; margin-bottom: 8px;">📄</div>
-            <h3 style="font-size: 16px; margin: 0 0 6px 0; color: var(--text-main);">Document Ready</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px 0;">
-              Indexed <strong style="color: var(--accent-purple);">${escapeHtml(docNames)}</strong>. Click any prompt below to query immediately:
-            </p>
-            <div style="font-size: 12.5px; font-weight: 600; color: var(--accent-purple); margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-              <span>✨</span> Try asking:
-            </div>
-            <div class="chip-row" style="margin-bottom: 0;">
-              <button class="chip-btn" data-prompt="Summarize this document."><span>📄</span> Summarize this document</button>
-              <button class="chip-btn" data-prompt="What are the main topics?"><span>📌</span> Main topics</button>
-              <button class="chip-btn" data-prompt="Explain this document in simple words."><span>💡</span> In simple words</button>
-              <button class="chip-btn" data-prompt="What are the important definitions?"><span>📖</span> Important definitions</button>
-              <button class="chip-btn" data-prompt="Give me the key points."><span>🎯</span> Key points</button>
-              <button class="chip-btn" data-prompt="Explain the most important concepts."><span>🧠</span> Important concepts</button>
-              <button class="chip-btn" data-prompt="What are the advantages and disadvantages?"><span>⚖️</span> Pros & cons</button>
-              <button class="chip-btn" data-prompt="Generate short study notes."><span>📝</span> Study notes</button>
-            </div>
+          <div style="font-size: 26px; margin-bottom: 8px;">📄</div>
+          <h3 style="font-size: 16px; margin: 0 0 6px 0; color: #ffffff;">Document Ready</h3>
+          <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px 0;">
+            Indexed <strong style="color: var(--accent-lavender);">${escapeHtml(docNames)}</strong>. Click any prompt below to query immediately:
+          </p>
+          <div style="font-size: 12.5px; font-weight: 700; color: var(--accent-lavender); margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span>✨</span> Try asking:
+          </div>
+          <div class="chip-grid" style="margin-bottom: 0;">
+            <button class="suggestion-chip" data-prompt="Summarize this document."><span class="chip-icon">📄</span> <span class="chip-text">Summarize this document</span></button>
+            <button class="suggestion-chip" data-prompt="What are the main topics?"><span class="chip-icon">📌</span> <span class="chip-text">What are the main topics?</span></button>
+            <button class="suggestion-chip" data-prompt="Explain this document in simple words."><span class="chip-icon">💡</span> <span class="chip-text">Explain in simple words</span></button>
+            <button class="suggestion-chip" data-prompt="What are the important definitions?"><span class="chip-icon">📖</span> <span class="chip-text">Important definitions</span></button>
+            <button class="suggestion-chip" data-prompt="Give me the key points."><span class="chip-icon">🎯</span> <span class="chip-text">Key points</span></button>
+            <button class="suggestion-chip" data-prompt="Explain the most important concepts."><span class="chip-icon">🧠</span> <span class="chip-text">Important concepts</span></button>
+            <button class="suggestion-chip" data-prompt="What are the advantages and disadvantages?"><span class="chip-icon">⚖️</span> <span class="chip-text">Pros & cons</span></button>
+            <button class="suggestion-chip" data-prompt="Generate short study notes."><span class="chip-icon">📝</span> <span class="chip-text">Generate study notes</span></button>
           </div>
         `;
         messagesList.appendChild(welcomeCard);
       }
     } else {
-      if (heroCenter) heroCenter.style.display = "block";
-      if (messagesList) messagesList.innerHTML = "";
+      renderEmptyHeroState();
     }
   } else {
     if (heroCenter) heroCenter.style.display = "none";
+    stopHeroAnimation();
     if (messagesList) {
       messagesList.innerHTML = "";
-      currentChatData.messages.forEach((msg) => renderMessageRow(msg));
+      messages.forEach((msg) => renderMessageRow(msg));
     }
   }
 
@@ -667,7 +1106,7 @@ function renderMessageRow(msg) {
       <div class="citations-container">
         <div class="citations-header">
           <div style="display: flex; align-items: center; gap: 6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
             <span>Source References (${msg.citations.length})</span>
           </div>
           <button class="citations-toggle-btn" type="button" onclick="toggleCitations(this)">Collapse ▴</button>
@@ -695,17 +1134,17 @@ function renderMessageRow(msg) {
   if (msg.role === "user") {
     row.innerHTML = `
       <div class="message-bubble">${escapeHtml(msg.content)}</div>
-      <div class="avatar user-avatar">
+      <div class="avatar user-avatar" title="You">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
       </div>
     `;
   } else {
     row.innerHTML = `
-      <div class="avatar ai-avatar">
+      <div class="avatar ai-avatar" title="DocRAG">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
       </div>
       <div class="message-bubble">
-        <div>${formatMarkdownBasic(msg.content)}</div>
+        <div>${formatMarkdownRich(msg.content)}</div>
         ${citationsHtml}
       </div>
     `;
@@ -714,7 +1153,7 @@ function renderMessageRow(msg) {
   messagesList.appendChild(row);
 }
 
-// Interactive helper: Toggle citations dropdown
+// Citations toggle helper
 window.toggleCitations = function (btn) {
   const container = btn.closest(".citations-container");
   if (!container) return;
@@ -729,7 +1168,7 @@ window.toggleCitations = function (btn) {
   }
 };
 
-// Interactive helper: Clicking a citation card opens the page inspector directly
+// Inspector page helper
 window.inspectSpecificPage = function (docName, pageNum) {
   openInspector();
   if (inspectDocSelect && docName) {
@@ -742,7 +1181,8 @@ window.inspectSpecificPage = function (docName, pageNum) {
   }
 };
 
-// --- Sending Messages (With in-flight guard & session-race prevention) ---
+// --- Sending Messages ---
+
 async function handleSendMessage() {
   if (isSending) return;
   if (!chatTextarea) return;
@@ -753,8 +1193,9 @@ async function handleSendMessage() {
     await createNewChat();
   }
 
+  // Ensure documents exist
   if (!currentChatData || !currentChatData.documents || currentChatData.documents.length === 0) {
-    showToast("Please attach at least one PDF document first!", "error");
+    showToast("Please attach a PDF document first!", "info");
     openModal(uploadModal);
     return;
   }
@@ -763,23 +1204,31 @@ async function handleSendMessage() {
   isSending = true;
   updateSendButtonState();
 
-  // Clear input
+  // Reset textarea height
   chatTextarea.value = "";
   chatTextarea.style.height = "auto";
 
-  // Optimistically show user message
+  // Hide hero
   if (heroCenter) heroCenter.style.display = "none";
+  stopHeroAnimation();
+
+  // Optimistically append user message
   renderMessageRow({ role: "user", content: text });
   scrollChatToBottom();
 
-  // Show live loading bubble
+  // Generating indicator bubble
   const loadingRow = document.createElement("div");
   loadingRow.className = "message-row assistant";
   loadingRow.id = "tempLoadingRow";
   loadingRow.innerHTML = `
     <div class="avatar ai-avatar">✦</div>
-    <div class="message-bubble" style="display: flex; align-items: center; gap: 8px;">
-      <span style="font-size: 13px; color: var(--accent-purple);">Retrieving passages and generating answer...</span>
+    <div class="message-bubble" style="display: flex; align-items: center; gap: 10px;">
+      <div class="generating-dots">
+        <div class="generating-dot"></div>
+        <div class="generating-dot"></div>
+        <div class="generating-dot"></div>
+      </div>
+      <span style="font-size: 13px; color: var(--accent-lavender);">Analyzing document and preparing grounded response...</span>
     </div>
   `;
   if (messagesList) messagesList.appendChild(loadingRow);
@@ -798,15 +1247,16 @@ async function handleSendMessage() {
     const data = await res.json();
     loadingRow.remove();
 
-    // Check if user is still on the same chat
     if (currentSessionId === targetSessionId) {
       if (res.ok && data.message) {
         renderMessageRow(data.message);
-        await loadChatList();
+        // Update cached session message count
+        const cached = cachedSessions.find(s => s.session_id === targetSessionId);
+        if (cached) cached.messages_count = (cached.messages_count || 0) + 2;
       } else {
         renderMessageRow({
           role: "assistant",
-          content: `⚠️ ${data.detail || data.error || "Generation could not complete."}`,
+          content: `⚠️ ${data.detail || data.error || "Generation could not complete. Please retry."}`,
         });
       }
     }
@@ -825,7 +1275,8 @@ async function handleSendMessage() {
   }
 }
 
-// --- Uploading Files (With client-side validation & in-flight guard) ---
+// --- Uploading Files ---
+
 async function handleFilesUpload(files) {
   if (isUploading) return;
   if (!files || !files.length) return;
@@ -868,7 +1319,7 @@ async function handleFilesUpload(files) {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
   try {
     const res = await fetch(`${API_BASE}/api/chats/${uploadSessionId}/upload`, {
@@ -891,9 +1342,8 @@ async function handleFilesUpload(files) {
         closeModal(uploadModal);
         if (uploadStatusText) uploadStatusText.innerText = "";
         if (fileInput) fileInput.value = "";
-      }, 1000);
+      }, 900);
 
-      // Only switch if user hasn't actively switched to another chat
       if (currentSessionId === uploadSessionId) {
         await switchChat(uploadSessionId);
       }
@@ -906,11 +1356,9 @@ async function handleFilesUpload(files) {
   } catch (err) {
     clearTimeout(timeoutId);
     const msg = err.name === "AbortError"
-      ? "Upload timed out (60s). If the free tier container was waking up, please retry."
+      ? "Upload timed out (60s). Please retry."
       : "The document service is temporarily unavailable. Please retry shortly.";
-    if (uploadStatusText) {
-      uploadStatusText.innerText = msg;
-    }
+    if (uploadStatusText) uploadStatusText.innerText = msg;
     showToast(msg, "error");
   } finally {
     isUploading = false;
@@ -918,9 +1366,10 @@ async function handleFilesUpload(files) {
 }
 
 // --- Document Page Inspector ---
+
 function openInspector() {
   if (!currentChatData || !currentChatData.documents || currentChatData.documents.length === 0) {
-    showToast("No PDFs attached in this chat yet. Attach a PDF first!", "error");
+    showToast("No PDFs attached in this chat yet. Attach a PDF first!", "info");
     openModal(uploadModal);
     return;
   }
@@ -970,7 +1419,7 @@ function updateInspectorText() {
   const pageNum = parseInt(inspectPageSelect.value);
   const doc = currentChatData.documents.find((d) => d.file_name === selectedDocName);
   if (!doc || !doc.pages) {
-    inspectTextarea.value = "(Text extracted and indexed in FAISS vector store)";
+    inspectTextarea.value = "(Text extracted and indexed in FAISS / BM25 index)";
     return;
   }
 
@@ -978,23 +1427,19 @@ function updateInspectorText() {
   inspectTextarea.value = page ? page.text : "(No content on this page)";
 }
 
-// --- Export Conversation (With explicit x-owner-id header & Blob download) ---
+// --- Export Conversation ---
+
 async function handleExport() {
   if (!currentSessionId) {
-    showToast("No active chat to export. Click '+ New Chat' first.", "error");
+    showToast("No active conversation to export.", "info");
     return;
   }
 
   try {
     const res = await fetch(`${API_BASE}/api/chats/${currentSessionId}/export`, {
-      headers: {
-        "x-owner-id": browserOwnerId,
-      },
+      headers: { "x-owner-id": browserOwnerId },
     });
-
-    if (!res.ok) {
-      throw new Error("Export request failed");
-    }
+    if (!res.ok) throw new Error("Export failed");
 
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -1003,7 +1448,7 @@ async function handleExport() {
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = `docRag-${safeTitle}.md`;
+    a.download = `DocRAG-${safeTitle}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1015,7 +1460,8 @@ async function handleExport() {
   }
 }
 
-// --- Helpers ---
+// --- Helper Functions ---
+
 function scrollChatToBottom() {
   if (!chatScrollArea) return;
   setTimeout(() => {
@@ -1025,12 +1471,12 @@ function scrollChatToBottom() {
     } else {
       chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
     }
-  }, 60);
+  }, 50);
 }
 
 function escapeHtml(text) {
   if (!text) return "";
-  return text
+  return String(text)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -1038,18 +1484,63 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
-function formatMarkdownBasic(text) {
+function copyCodeToClipboard(button, codeText) {
+  navigator.clipboard.writeText(codeText).then(() => {
+    const original = button.innerText;
+    button.innerText = "Copied!";
+    setTimeout(() => {
+      button.innerText = original;
+    }, 2000);
+  }).catch(() => {
+    button.innerText = "Copied!";
+    setTimeout(() => { button.innerText = "Copy"; }, 2000);
+  });
+}
+window.copyCodeToClipboard = copyCodeToClipboard;
+
+function formatMarkdownRich(text) {
   if (!text) return "";
   let formatted = escapeHtml(text);
+
+  // Fenced Code Blocks with copy button
+  formatted = formatted.replace(/```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+    const displayLang = lang ? lang.toUpperCase() : "CODE";
+    const encodedCode = encodeURIComponent(code.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
+    return `
+      <div class="code-block-wrapper" style="margin: 10px 0;">
+        <div class="code-block-header">
+          <span>${displayLang}</span>
+          <button class="code-copy-btn" type="button" onclick="copyCodeToClipboard(this, decodeURIComponent('${encodedCode}'))">Copy</button>
+        </div>
+        <pre><code>${code.trim()}</code></pre>
+      </div>
+    `;
+  });
+
+  // Inline code
+  formatted = formatted.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  // Headings
+  formatted = formatted.replace(/^### (.*$)/gim, "<h3>$1</h3>");
+  formatted = formatted.replace(/^## (.*$)/gim, "<h2>$1</h2>");
+  formatted = formatted.replace(/^# (.*$)/gim, "<h2>$1</h2>");
+
+  // Bold & Italics
   formatted = formatted.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
   formatted = formatted.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+  // Source badges
   formatted = formatted.replace(
     /\[Source\s*(\d+)\]/g,
-    '<span class="badge-pill" style="font-size: 11px;">Source $1</span>'
+    '<span class="citation-badge">Source $1</span>'
   );
+
+  // Line breaks
+  formatted = formatted.replace(/\n\n/g, "<br><br>");
   formatted = formatted.replace(/\n/g, "<br>");
+
   return formatted;
 }
 
-// Start
+// Start on DOM ready
 document.addEventListener("DOMContentLoaded", initApp);

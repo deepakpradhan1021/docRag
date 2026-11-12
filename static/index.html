@@ -2,68 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>docRag — Document Intelligence</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DocRAG — Your Documents. Your Answers. One Intelligent Workspace.</title>
+  <meta name="description" content="Intelligent document assistant for querying, summarizing, and exploring PDFs with grounded page citations.">
+  <link rel="canonical" href="https://docrag-ai.netlify.app/">
+  
+  <!-- Open Graph / Social Sharing -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://docrag-ai.netlify.app/">
+  <meta property="og:title" content="DocRAG — Your Documents. Your Answers. One Intelligent Workspace.">
+  <meta property="og:description" content="Intelligent AI document assistant for querying, summarizing, and synthesizing PDFs with grounded page citations.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="DocRAG — Intelligent Document Assistant">
+  <meta name="twitter:description" content="Upload documents, ask anything, and get verified answers backed by page citations.">
+
   <link rel="stylesheet" href="style.css">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <div class="app-container">
   
   <!-- =========================================================================
-       Left Sidebar (Nextmove & Zyricon design)
+       Mobile Backdrop Overlay
        ========================================================================= -->
-  <aside class="sidebar" id="sidebar">
+  <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+
+  <!-- =========================================================================
+       Left Sidebar
+       ========================================================================= -->
+  <aside class="sidebar" id="sidebar" aria-label="Sidebar Navigation">
     <div class="sidebar-header">
       <div class="brand">
         <div class="brand-icon">
-          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
         </div>
         <span class="brand-name">docRag</span>
       </div>
-      <button class="btn-icon" id="toggleSidebarBtn" title="Toggle Sidebar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+      <button class="btn-icon sidebar-close-btn" id="toggleSidebarBtn" title="Close Sidebar" aria-label="Close sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
 
     <!-- + New Chat Button -->
-    <button class="new-chat-btn" id="newChatBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    <button class="new-chat-btn" id="newChatBtn" aria-label="Start a new chat conversation">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
       <span>New Chat</span>
     </button>
 
     <div class="sidebar-content">
-      <!-- Chat Sessions List (with active neon pill) -->
+      <!-- Chat Sessions List -->
       <div class="section-label">Recent Chats</div>
-      <div class="chat-list" id="chatListContainer">
+      <div class="chat-list" id="chatListContainer" role="navigation" aria-label="Chat conversations">
         <!-- Rendered dynamically by JS -->
       </div>
 
       <!-- Attached Documents List -->
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 18px; margin-bottom: 6px; padding: 0 4px;">
-        <span class="section-label" style="margin: 0;">Document Library</span>
-        <button class="action-pill-btn" id="sidebarAttachBtn" title="Attach PDF to this chat" style="padding: 2px 10px; font-size: 11px; height: 24px; border-color: rgba(168, 85, 247, 0.4); cursor: pointer;">
-          + Add PDF
-        </button>
-      </div>
-      <div id="sidebarDocList">
-        <!-- Rendered dynamically by JS -->
-        <div style="font-size: 12px; color: var(--text-dim); padding: 8px 10px;">No PDFs in this chat.</div>
-      </div>
-      <div style="font-size: 11px; color: var(--text-dim); padding: 8px 10px; line-height: 1.4; border-top: 1px solid var(--border-subtle); margin-top: 12px;">
-        💡 <em>Ephemeral Demo:</em> Documents and chats are stored in server RAM and reset when the free-tier backend sleeps or restarts.
+      <div class="sidebar-doc-section">
+        <div class="sidebar-doc-header">
+          <span class="section-label" style="margin: 0; padding: 0;">Document Library</span>
+          <button class="sidebar-add-doc-btn" id="sidebarAttachBtn" title="Attach PDF to this chat" aria-label="Attach PDF">
+            + Add PDF
+          </button>
+        </div>
+        <div id="sidebarDocList">
+          <!-- Rendered dynamically by JS -->
+          <div class="sidebar-empty-docs">No PDFs in this chat.</div>
+        </div>
       </div>
     </div>
 
-    <!-- Sidebar Footer / Architecture Badge -->
+    <!-- Sidebar Footer -->
     <div class="sidebar-footer">
-      <div class="upgrade-card">
-        <div class="card-badge">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+      <div class="sidebar-status-card">
+        <div class="status-indicator-row">
+          <span class="status-dot online" id="sidebarStatusDot"></span>
+          <span class="status-text" id="backendStatusPill">Connecting to server...</span>
         </div>
-        <h4>Demo Architecture</h4>
-        <p>BM25 Hybrid Retrieval &bull; Ephemeral RAM &bull; Gemini 3.5 Flash</p>
-        <span class="badge-pill" id="backendStatusPill" style="white-space: normal; line-height: 1.3; font-size: 10.5px;">Connecting...</span>
+        <p class="status-subtext">BM25 Hybrid Retrieval &bull; Ephemeral RAM</p>
       </div>
     </div>
   </aside>
@@ -71,125 +90,205 @@
   <!-- =========================================================================
        Main Chat Canvas
        ========================================================================= -->
-  <main class="main-canvas">
+  <main class="main-canvas" id="mainCanvas">
     
-    <!-- Top App Bar -->
+    <!-- Top Navigation Header -->
     <header class="top-nav">
-      <div class="model-selector" id="modelSelector">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
-        <span id="currentModelLabel">Connecting...</span>
+      <div class="top-nav-left">
+        <button class="menu-toggle-btn" id="mobileMenuBtn" aria-label="Open navigation sidebar" title="Open navigation sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div class="nav-chat-meta">
+          <div class="nav-brand-pill">
+            <span class="sparkle-icon">✦</span>
+            <span class="nav-chat-title" id="navChatTitle">DocRAG Workspace</span>
+          </div>
+        </div>
       </div>
 
-      <div class="nav-actions">
-        <button class="action-pill-btn" id="openInspectorBtn" title="Inspect extracted PDF pages">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-          <span>Pages</span>
-        </button>
-        <button class="action-pill-btn" id="exportBtn" title="Export Q&A as Markdown">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          <span>Export</span>
-        </button>
-        <button class="action-pill-btn" id="settingsBtn" title="API Key & Pipeline Settings">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          <span>Settings</span>
-        </button>
+      <div class="top-nav-right">
+        <!-- Connection status badge -->
+        <div class="header-status-badge" id="headerStatusBadge" title="Server Connection Status">
+          <span class="status-dot" id="headerStatusDot"></span>
+          <span id="headerStatusText">Checking...</span>
+        </div>
+
+        <!-- Three-dot menu trigger -->
+        <div class="menu-dropdown-wrapper">
+          <button class="btn-icon three-dot-btn" id="threeDotBtn" aria-label="Open menu options" aria-haspopup="true" aria-expanded="false" title="Options">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
+          </button>
+
+          <!-- Dropdown Menu -->
+          <div class="menu-dropdown" id="threeDotMenu" role="menu" aria-label="Workspace Options">
+            <button class="menu-item" id="menuInspectorBtn" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+              <span>Document Page Inspector</span>
+            </button>
+            <button class="menu-item" id="menuExportBtn" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Export Conversation (.md)</span>
+            </button>
+            <button class="menu-item" id="menuClearChatBtn" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              <span>Clear Conversation</span>
+            </button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" id="menuSettingsBtn" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              <span>Settings & Key</span>
+            </button>
+            <button class="menu-item" id="menuAboutBtn" role="menuitem">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              <span>About DocRAG</span>
+            </button>
+          </div>
+        </div>
       </div>
     </header>
 
     <!-- Scrollable Chat Stream / Hero Container -->
     <div class="chat-scroll-area" id="chatScrollArea">
       
-      <!-- Zyricon Hero Welcome State -->
-      <div class="hero-center" id="heroCenter">
-        <div class="orb-wrapper">
-          <div class="glowing-orb"></div>
-        </div>
-        <h1 class="hero-title">Explore Your Documents</h1>
-        <p class="hero-subtitle">Upload text-based PDF(s) to query them with page references and quoted source excerpts.</p>
-        
-        <div class="try-asking-section" style="margin-top: 18px; margin-bottom: 24px;">
-          <div class="try-asking-label" style="font-size: 13px; font-weight: 600; color: var(--accent-purple); margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            <span>✨</span> Try asking:
-          </div>
-          <div class="chip-row">
-            <button class="chip-btn" data-prompt="Summarize this document.">
-              <span>📄</span> Summarize this document
-            </button>
-            <button class="chip-btn" data-prompt="What are the main topics?">
-              <span>📌</span> Main topics
-            </button>
-            <button class="chip-btn" data-prompt="Explain this document in simple words.">
-              <span>💡</span> In simple words
-            </button>
-            <button class="chip-btn" data-prompt="What are the important definitions?">
-              <span>📖</span> Important definitions
-            </button>
-            <button class="chip-btn" data-prompt="Give me the key points.">
-              <span>🎯</span> Key points
-            </button>
-            <button class="chip-btn" data-prompt="Explain the most important concepts.">
-              <span>🧠</span> Important concepts
-            </button>
-            <button class="chip-btn" data-prompt="What are the advantages and disadvantages?">
-              <span>⚖️</span> Pros & cons
-            </button>
-            <button class="chip-btn" data-prompt="Generate short study notes.">
-              <span>📝</span> Study notes
-            </button>
-          </div>
+      <!-- =====================================================================
+           Futuristic 3D Animated Hero Section
+           ===================================================================== -->
+      <section class="hero-container" id="heroCenter">
+        <div class="hero-visual-wrapper">
+          <canvas id="hero3DCanvas" class="hero-3d-canvas" width="480" height="150" aria-hidden="true"></canvas>
+          <div class="hero-glow-overlay" aria-hidden="true"></div>
         </div>
 
-        <div class="feature-cards-grid">
-          <button type="button" class="feature-card" id="cardAttachPdf" style="text-align: left; cursor: pointer; border-color: rgba(168, 85, 247, 0.3); background: none; font-family: inherit;" title="Click to attach PDF documents">
-            <h5 style="margin-top: 0;">📚 Multi-Document RAG <span style="font-size: 11px; color: var(--accent-purple); float: right;">+ Click to Attach</span></h5>
-            <p style="margin: 0;">Attach multiple PDFs to a single chat session to cross-reference passages across documents.</p>
-          </button>
-          <div class="feature-card">
-            <h5>🎯 Page References</h5>
-            <p>Responses include 1-indexed document page numbers with quoted excerpts for quick inspection.</p>
+        <div class="hero-content">
+          <div class="hero-badge">
+            <span class="hero-badge-spark">✦</span>
+            <span>Intelligent Document Workspace</span>
           </div>
-          <div class="feature-card">
-            <h5>⚡ Ephemeral RAM Store</h5>
-            <p>Documents and vector indices are stored in RAM per session and reset when the free container sleeps.</p>
+
+          <h1 class="hero-headline">
+            <span class="headline-part">Your Documents.</span>
+            <span class="headline-part">Your Answers.</span><br class="desktop-br">
+            <span class="hero-gradient-text headline-part">One Intelligent Workspace.</span>
+          </h1>
+
+          <p class="hero-subtext">
+            Upload a document, ask anything, and get clear answers backed by your files.
+          </p>
+
+          <div class="hero-actions-row">
+            <button class="hero-cta-btn primary" id="heroStartChatBtn">
+              <span>Start a Conversation</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+            <button class="hero-cta-btn secondary" id="heroUploadPdfBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>Upload a PDF</span>
+            </button>
+          </div>
+
+          <!-- Redesigned "Try Asking" Suggestions -->
+          <div class="try-asking-box">
+            <div class="try-asking-header">
+              <span class="try-asking-icon">✨</span>
+              <span>Try asking:</span>
+            </div>
+            <div class="chip-grid">
+              <button class="suggestion-chip" data-prompt="Summarize this document.">
+                <span class="chip-icon">📄</span>
+                <span class="chip-text">Summarize this document</span>
+              </button>
+              <button class="suggestion-chip" data-prompt="What are the main topics?">
+                <span class="chip-icon">📌</span>
+                <span class="chip-text">What are the main topics?</span>
+              </button>
+              <button class="suggestion-chip" data-prompt="Explain this document in simple words.">
+                <span class="chip-icon">💡</span>
+                <span class="chip-text">Explain in simple words</span>
+              </button>
+              <button class="suggestion-chip" data-prompt="What are the important definitions?">
+                <span class="chip-icon">📖</span>
+                <span class="chip-text">Important definitions</span>
+              </button>
+              <button class="suggestion-chip" data-prompt="Give me the key points.">
+                <span class="chip-icon">🎯</span>
+                <span class="chip-text">Key points</span>
+              </button>
+              <button class="suggestion-chip" data-prompt="Explain the most important concepts.">
+                <span class="chip-icon">🧠</span>
+                <span class="chip-text">Important concepts</span>
+              </button>
+              <button class="suggestion-chip" data-prompt="What are the advantages and disadvantages?">
+                <span class="chip-icon">⚖️</span>
+                <span class="chip-text">Pros & cons</span>
+              </button>
+              <button class="suggestion-chip" data-prompt="Generate short study notes.">
+                <span class="chip-icon">📝</span>
+                <span class="chip-text">Generate study notes</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Feature Cards Grid -->
+          <div class="feature-cards-grid">
+            <button type="button" class="feature-card interactive" id="cardAttachPdf" title="Click to attach PDF documents">
+              <div class="feature-card-header">
+                <span class="feature-card-icon">📚</span>
+                <h5>Multi-Document RAG</h5>
+              </div>
+              <p>Cross-reference information across multiple PDFs within a single chat session.</p>
+              <span class="card-action-hint">+ Attach PDF &rarr;</span>
+            </button>
+            <div class="feature-card">
+              <div class="feature-card-header">
+                <span class="feature-card-icon">🎯</span>
+                <h5>Page-Grounded Citations</h5>
+              </div>
+              <p>Every response includes verified page numbers and clickable source excerpts.</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-card-header">
+                <span class="feature-card-icon">⚡</span>
+                <h5>Ephemeral Privacy</h5>
+              </div>
+              <p>Your documents and vector stores live strictly in RAM and reset automatically on idle.</p>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Messages Stream (populated dynamically) -->
-      <div id="messagesList" style="display: flex; flex-direction: column; gap: 20px;"></div>
+      <div class="messages-list" id="messagesList"></div>
 
     </div>
 
-    <!-- Floating Chat Input Bar (Zyricon design) -->
-    <div class="input-floating-container">
-      <!-- Attached docs tag pills inside input -->
-      <div class="active-docs-bar" id="activeDocsBar" style="display: none;"></div>
+    <!-- =========================================================================
+         Fixed Bottom Chat Composer (ChatGPT-style)
+         ========================================================================= -->
+    <div class="composer-container" id="composerContainer">
+      <div class="composer-inner">
+        <!-- Attached docs tag pills inside input -->
+        <div class="active-docs-bar" id="activeDocsBar" style="display: none;"></div>
 
-      <div class="input-top-row">
-        <span class="input-icon-spark">✦</span>
-        <textarea 
-          id="chatTextarea" 
-          class="chat-textarea" 
-          rows="1" 
-          placeholder="Ask anything about your document(s)..."></textarea>
-      </div>
-
-      <div class="input-toolbar">
-        <div class="toolbar-left">
-          <button class="tool-btn" id="attachBtn" title="Attach PDF documents">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-            <span>Attach PDF</span>
+        <!-- Composer Main Row -->
+        <div class="composer-box">
+          <button class="composer-attach-btn" id="attachBtn" title="Attach PDF document" aria-label="Attach PDF document">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
           </button>
-          <button class="tool-btn" id="quickInspectBtn" title="Inspect extracted pages">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-            <span>View Pages</span>
+
+          <textarea 
+            id="chatTextarea" 
+            class="composer-textarea" 
+            rows="1" 
+            placeholder="Ask anything about your document..." 
+            aria-label="Ask a question about your document"></textarea>
+
+          <button class="composer-send-btn" id="sendBtn" title="Send message (Enter)" aria-label="Send message" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
           </button>
         </div>
 
-        <div class="toolbar-right">
-          <button class="send-btn" id="sendBtn" title="Send message" disabled>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-          </button>
+        <div class="composer-footer-info">
+          <span>DocRAG cites exact pages from your uploaded PDFs. Enter to send, Shift + Enter for new line.</span>
         </div>
       </div>
     </div>
@@ -203,51 +302,58 @@
 <div class="modal-overlay" id="uploadModal" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
   <div class="modal-dialog">
     <div class="modal-header">
-      <h3 id="uploadModalTitle">Attach PDF Document(s)</h3>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 20px;">📄</span>
+        <h3 id="uploadModalTitle">Attach PDF Document(s)</h3>
+      </div>
       <button class="btn-icon" id="closeUploadModalBtn" aria-label="Close upload dialog">&times;</button>
     </div>
     
-    <!-- Hidden File Input separated from dropzone to avoid event loop -->
     <input type="file" id="fileInput" accept="application/pdf" multiple style="display: none;">
 
-    <div class="dropzone" id="dropzone" style="cursor: pointer;">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-      <h4 style="margin-bottom: 6px;">Drop your PDF(s) here, or click to browse</h4>
-      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Text-based PDFs up to 10 MB and 50 pages each.</p>
-      <p style="font-size: 11px; color: var(--accent-purple); margin-bottom: 12px;">Stored ephemerally in server RAM for this session only.</p>
-      <button type="button" class="action-pill-btn" id="browseFilesBtn" style="background: rgba(168, 85, 247, 0.2); border: 1px solid var(--accent-purple); color: white; padding: 6px 18px; font-size: 12.5px; cursor: pointer; pointer-events: none;">
+    <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Drop PDF files here or click to browse">
+      <div class="dropzone-icon-wrapper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+      </div>
+      <h4>Drop your PDF(s) here, or click to browse</h4>
+      <p class="dropzone-sub">Text-based PDFs up to 10 MB and 50 pages each.</p>
+      <p class="dropzone-hint">Stored ephemerally in server RAM for this session only.</p>
+      <button type="button" class="dropzone-browse-btn" id="browseFilesBtn">
         📂 Browse Files
       </button>
     </div>
 
-    <div id="uploadStatusText" style="margin-top: 14px; font-size: 13px; color: var(--accent-purple); text-align: center; font-weight: 500;"></div>
+    <div id="uploadStatusText" class="upload-status-text" aria-live="polite"></div>
   </div>
 </div>
 
 <!-- =========================================================================
-     Page Inspector Modal (Side-by-side or full view of extracted pages)
+     Document Page Inspector Modal
      ========================================================================= -->
 <div class="modal-overlay" id="inspectorModal" role="dialog" aria-modal="true" aria-labelledby="inspectorModalTitle">
-  <div class="modal-dialog" style="max-width: 720px;">
+  <div class="modal-dialog modal-wide">
     <div class="modal-header">
-      <h3 id="inspectorModalTitle">📖 Document Page Inspector</h3>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 20px;">📖</span>
+        <h3 id="inspectorModalTitle">Document Page Inspector</h3>
+      </div>
       <button class="btn-icon" id="closeInspectorModalBtn" aria-label="Close inspector dialog">&times;</button>
     </div>
     
-    <div style="display: flex; gap: 12px; margin-bottom: 14px;">
-      <div style="flex: 1;">
-        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Document:</label>
+    <div class="inspector-controls">
+      <div class="control-group">
+        <label for="inspectDocSelect">Document:</label>
         <select id="inspectDocSelect" class="form-control"></select>
       </div>
-      <div style="width: 140px;">
-        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Page Number:</label>
+      <div class="control-group page-number-group">
+        <label for="inspectPageSelect">Page Number:</label>
         <select id="inspectPageSelect" class="form-control"></select>
       </div>
     </div>
 
-    <div class="form-group">
-      <label>Extracted Text Content (Cleaned with PyMuPDF):</label>
-      <textarea id="inspectTextarea" class="form-control" rows="12" readonly style="font-family: monospace; font-size: 12.5px; line-height: 1.5;"></textarea>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label for="inspectTextarea">Extracted Page Text (Cleaned with PyMuPDF):</label>
+      <textarea id="inspectTextarea" class="form-control inspector-textarea" rows="12" readonly></textarea>
     </div>
   </div>
 </div>
@@ -258,40 +364,112 @@
 <div class="modal-overlay" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
   <div class="modal-dialog">
     <div class="modal-header">
-      <h3 id="settingsModalTitle">⚙️ Configuration & API Key</h3>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 20px;">⚙️</span>
+        <h3 id="settingsModalTitle">Settings & Configuration</h3>
+      </div>
       <button class="btn-icon" id="closeSettingsModalBtn" aria-label="Close settings dialog">&times;</button>
     </div>
 
     <div class="form-group">
-      <label>Google Gemini API Key:</label>
-      <input type="password" id="apiKeyInput" class="form-control" placeholder="AIzaSy... (leave blank to use server environment key)">
-      <p style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;">
+      <label for="apiKeyInput">Google Gemini API Key (Optional):</label>
+      <input type="password" id="apiKeyInput" class="form-control" placeholder="AIzaSy... (leave blank to use server key)">
+      <p class="field-hint">
         🔒 <strong>Session-Only Storage:</strong> Any key you enter is stored in memory for this browser tab only (cleared when you close the tab).
       </p>
-      <p style="font-size: 11.5px; color: #fb923c; margin-top: 4px;">
-        ⚠️ <strong>Server Relay Notice:</strong> Your key is sent over HTTPS to the backend server to invoke Google Gemini. For full peace of mind, use a dedicated free throwaway key from Google AI Studio.
-      </p>
     </div>
 
     <div class="form-group">
-      <label>Backend API URL:</label>
+      <label for="apiBaseInput">Backend API Base URL:</label>
       <input type="text" id="apiBaseInput" class="form-control" placeholder="https://docrag-3gb4.onrender.com">
-      <p style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;" id="backendConnectionNote">Connection status: Free-tier backend, may take up to 45 s to wake</p>
+      <p class="field-hint" id="backendConnectionNote">Status: Free-tier backend, may take up to 45 s to wake</p>
     </div>
 
     <div class="form-group">
-      <label>Active Model:</label>
-      <input type="text" id="activeModelSettingInput" value="gemini-2.5-flash (Cascade: gemini-2.0-flash, gemini-1.5-flash)" class="form-control" disabled>
+      <label for="activeModelSettingInput">Model Architecture:</label>
+      <input type="text" id="activeModelSettingInput" value="Gemini Flash Cascade (Zero-Quota Interruption)" class="form-control" disabled>
     </div>
 
     <div class="form-group">
       <label>Retrieval Settings:</label>
-      <p style="font-size: 12.5px; color: var(--text-muted);">Top-4 passages &bull; 1000 char chunks &bull; 200 char overlap &bull; In-memory BM25 hybrid</p>
+      <p class="field-hint" style="color: var(--text-muted);">Top-4 passages &bull; 1000 char chunks &bull; 200 char overlap &bull; In-memory BM25 hybrid</p>
     </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-      <button class="action-pill-btn" id="clearApiKeyBtn" type="button" style="background: transparent; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">Clear Key</button>
-      <button class="action-pill-btn" id="saveSettingsBtn" style="background: var(--accent-gradient); color: white; border: none;">Save for this Session</button>
+    <div class="modal-actions-row">
+      <button class="modal-btn outline-danger" id="clearApiKeyBtn" type="button">Clear Key</button>
+      <button class="modal-btn primary" id="saveSettingsBtn">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     About DocRAG Modal
+     ========================================================================= -->
+<div class="modal-overlay" id="aboutModal" role="dialog" aria-modal="true" aria-labelledby="aboutModalTitle">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="brand-icon" style="width: 28px; height: 28px;">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        </div>
+        <h3 id="aboutModalTitle" style="margin: 0; font-size: 18px;">About DocRAG</h3>
+      </div>
+      <button class="btn-icon" id="closeAboutModalBtn" aria-label="Close about dialog">&times;</button>
+    </div>
+    
+    <div class="about-modal-body">
+      <p class="about-lead">
+        <strong>DocRAG</strong> is an intelligent document understanding assistant designed for deep comprehension, synthesis, and accurate citation-grounded question answering over PDF files.
+      </p>
+
+      <div class="about-features-list">
+        <div class="about-feature-card">
+          <span class="about-icon">🧠</span>
+          <div>
+            <strong>Intent-Aware Query Understanding</strong>
+            <p>Automatically recognizes summarization and overview requests ("summary", "explain this PDF", "key points") and synthesizes across document sections rather than failing similarity thresholds.</p>
+          </div>
+        </div>
+        <div class="about-feature-card">
+          <span class="about-icon">🎯</span>
+          <div>
+            <strong>Verified Page References</strong>
+            <p>Every answer includes 1-indexed document page references and exact quoted excerpts for quick verification.</p>
+          </div>
+        </div>
+        <div class="about-feature-card">
+          <span class="about-icon">🔒</span>
+          <div>
+            <strong>Ephemeral RAM Privacy</strong>
+            <p>Documents and vector indices reside in memory per session and reset automatically on idle. No data is stored persistently.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="about-live-links">
+        <span class="about-links-label">Live Applications & Endpoints</span>
+        <div class="about-links-chips">
+          <a href="https://docrag-ai.netlify.app/" target="_blank" rel="noopener noreferrer" class="about-link-chip">
+            <span class="chip-dot netlify"></span> Web App (Netlify)
+          </a>
+          <a href="https://docrag-3gb4.onrender.com" target="_blank" rel="noopener noreferrer" class="about-link-chip">
+            <span class="chip-dot render"></span> Cloud Backend (Render)
+          </a>
+          <a href="https://docrag-3gb4.onrender.com/docs" target="_blank" rel="noopener noreferrer" class="about-link-chip">
+            <span class="chip-dot docs"></span> Swagger API Docs
+          </a>
+          <a href="https://docrag-3gb4.onrender.com/api/health" target="_blank" rel="noopener noreferrer" class="about-link-chip">
+            <span class="chip-dot health"></span> Health Status
+          </a>
+        </div>
+      </div>
+
+      <div class="about-footer-row">
+        <span>Version 2.0 &bull; FastAPI + BM25 Hybrid + Gemini</span>
+        <a href="https://github.com/deepakpradhan1021/docRag" target="_blank" rel="noopener noreferrer" class="about-gh-link">
+          GitHub Repository &rarr;
+        </a>
+      </div>
     </div>
   </div>
 </div>

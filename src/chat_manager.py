@@ -262,6 +262,12 @@ class ChatSession:
         self.save_to_disk()
         return msg
 
+    def clear_messages(self) -> None:
+        """Clear all messages from this session while keeping indexed documents."""
+        self.messages.clear()
+        self.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+        self.save_to_disk()
+
     def to_dict(self, include_pages: bool = False) -> dict:
         """Serialize chat session for REST API responses."""
         docs_summary = []

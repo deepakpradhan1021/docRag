@@ -67,6 +67,22 @@ class TestChatManagerAndAPI(unittest.TestCase):
         self.assertEqual(res_chat.status_code, 200)
         self.assertEqual(len(res_chat.json()["documents"]), 1)
 
+    def test_clear_chat_messages(self):
+        # Create session
+        res_create = self.client.post("/api/chats", json={"title": "Clear Test"})
+        session_id = res_create.json()["session_id"]
+
+        # Add message directly to session
+        session = session_manager.get_session(session_id)
+        session.add_message(role="user", content="Hello test")
+        session.add_message(role="assistant", content="Hello response")
+        self.assertEqual(len(session.messages), 2)
+
+        # Clear messages via API
+        res_clear = self.client.post(f"/api/chats/{session_id}/clear")
+        self.assertEqual(res_clear.status_code, 200)
+        self.assertEqual(len(res_clear.json()["chat"]["messages"]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
