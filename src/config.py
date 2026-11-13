@@ -10,39 +10,27 @@ import os
 from dotenv import load_dotenv
 
 # Load .env file for local development (ignored in production).
-# Streamlit Community Cloud uses st.secrets instead.
 load_dotenv()
 
 # ---------------------------------------------------------------------------
 # LLM Provider
 # ---------------------------------------------------------------------------
 # We use Google Gemini's free tier via the Google AI (non-Vertex) endpoint.
-# The API key is loaded from runtime input, Streamlit secrets, or .env.
-# Locally: set it in .env     |  Deployed: set it in Streamlit secrets.
+# The API key is loaded from runtime input, request headers, or .env.
+# Locally: set it in .env     |  Deployed: set it in cloud environment variables.
 GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 
 
 def get_gemini_api_key(override_key: str | None = None) -> str:
     """
     Resolve Google API key in priority order:
-    1. Explicit runtime override (e.g. from UI settings input)
-    2. Streamlit secrets (for Streamlit Community Cloud)
-    3. OS environment variable / .env file
+    1. Explicit runtime override (e.g. from UI settings input or request header)
+    2. OS environment variable / .env file
     """
     if override_key and override_key.strip():
         k = override_key.strip()
         if k not in ("your-api-key-here", "your_gemini_api_key_here", "AIzaSy..."):
             return k
-
-    # Try Streamlit secrets if running inside Streamlit
-    try:
-        import streamlit as st
-        if hasattr(st, "secrets") and "GOOGLE_API_KEY" in st.secrets:
-            secret_val = str(st.secrets["GOOGLE_API_KEY"]).strip()
-            if secret_val and secret_val not in ("your-api-key-here", "your_gemini_api_key_here"):
-                return secret_val
-    except Exception:
-        pass
 
     # Fallback to environment variable
     env_key = os.getenv("GOOGLE_API_KEY", "").strip()
@@ -79,9 +67,8 @@ LLM_MAX_OUTPUT_TOKENS: int = 1024
 # ---------------------------------------------------------------------------
 # PDF Upload Limits
 # ---------------------------------------------------------------------------
-# Maximum file size in megabytes.  Streamlit Community Cloud has a 200 MB
-# default upload limit, but large PDFs burn more memory, embedding time,
-# and LLM context.  10 MB is generous for text-based PDFs.
+# Maximum file size in megabytes. Text-based PDFs are usually < 5 MB,
+# so 10 MB is generous while protecting server memory.
 MAX_FILE_SIZE_MB: int = 10
 
 # Maximum number of pages.  Each page becomes several chunks, and each chunk

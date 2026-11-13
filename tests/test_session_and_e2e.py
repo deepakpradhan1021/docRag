@@ -31,7 +31,7 @@ def make_test_pdf() -> bytes:
     p2.insert_text((50, 72), "The vector database used is FAISS, developed by Meta AI Research.")
 
     p3 = doc.new_page()
-    p3.insert_text((50, 72), "Streamlit Community Cloud is used for zero-cost web deployment.")
+    p3.insert_text((50, 72), "Cloud backends and static hosting provide high-performance web deployment.")
 
     pdf_bytes = doc.tobytes()
     doc.close()

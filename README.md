@@ -165,6 +165,8 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 
 ```bash
 python server.py
+# or
+python app.py
 ```
 
 Open your browser at `http://localhost:8000` to interact with the local UI, or view interactive API documentation at `http://localhost:8000/docs`.

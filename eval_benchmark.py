@@ -102,7 +102,7 @@ def run_benchmark():
 
     langchain_docs = pages_to_langchain_documents(pages)
     chunks = split_documents_into_chunks(langchain_docs, chunk_size=1000, chunk_overlap=200)
-    print(f"Created {len(chunks)} text chunks with app settings (1000 chunk_size, 200 overlap). Initializing FAISS vector store...")
+    print(f"Created {len(chunks)} text chunks with app settings (1000 chunk_size, 200 overlap). Initializing in-memory retrieval index...")
 
     vector_store = create_vector_store(chunks)
 

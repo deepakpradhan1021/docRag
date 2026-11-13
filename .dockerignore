@@ -7,5 +7,4 @@ data/
 uploads/
 indexes/
 .env
-.streamlit/secrets.toml
 tests/

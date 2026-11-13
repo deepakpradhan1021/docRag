@@ -143,7 +143,7 @@ def extract_pages_from_pdf(
     Extract text page by page from a PDF file while preserving page numbers.
 
     Parameters:
-        source: Raw PDF bytes or a file-like stream (e.g. Streamlit's UploadedFile).
+        source: Raw PDF bytes or a file-like stream (e.g. FastAPI UploadFile or BytesIO).
         file_name: Original filename for citation metadata.
         max_size_mb: Configurable maximum size limit in MB.
         max_pages: Configurable maximum page limit.
