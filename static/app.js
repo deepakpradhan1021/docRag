@@ -178,7 +178,7 @@ function init3DHeroCanvas() {
       speed: 0.005 + Math.random() * 0.009,
       floatOffset: Math.random() * Math.PI * 2,
       floatSpeed: 0.02 + Math.random() * 0.02,
-      color: Math.random() > 0.4 ? "#a855f7" : "#818cf8"
+      color: Math.random() > 0.4 ? "#3ecf8e" : "#10b981"
     });
   }
 
@@ -230,10 +230,10 @@ function init3DHeroCanvas() {
 
     // Central glowing core
     const coreGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 38 * breath);
-    coreGrad.addColorStop(0, "rgba(233, 213, 255, 0.95)");
-    coreGrad.addColorStop(0.3, "rgba(168, 85, 247, 0.55)");
-    coreGrad.addColorStop(0.7, "rgba(99, 102, 241, 0.2)");
-    coreGrad.addColorStop(1, "rgba(7, 8, 20, 0)");
+    coreGrad.addColorStop(0, "rgba(220, 252, 231, 0.95)");
+    coreGrad.addColorStop(0.3, "rgba(62, 207, 142, 0.55)");
+    coreGrad.addColorStop(0.7, "rgba(16, 185, 129, 0.2)");
+    coreGrad.addColorStop(1, "rgba(12, 13, 14, 0)");
     ctx.fillStyle = coreGrad;
     ctx.beginPath();
     ctx.arc(cx, cy, 38 * breath, 0, Math.PI * 2);
@@ -275,8 +275,8 @@ function init3DHeroCanvas() {
       const alpha = Math.max(0.15, Math.min(0.75, (avgZ + R) / (2 * R)));
 
       const edgeGrad = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y);
-      edgeGrad.addColorStop(0, `rgba(168, 85, 247, ${alpha})`);
-      edgeGrad.addColorStop(1, `rgba(99, 102, 241, ${alpha * 0.85})`);
+      edgeGrad.addColorStop(0, `rgba(62, 207, 142, ${alpha})`);
+      edgeGrad.addColorStop(1, `rgba(16, 185, 129, ${alpha * 0.85})`);
 
       ctx.strokeStyle = edgeGrad;
       ctx.beginPath();
@@ -288,7 +288,7 @@ function init3DHeroCanvas() {
     // Draw vertices glowing points
     projected.forEach(p => {
       const pointAlpha = Math.max(0.3, Math.min(1, (p.z + R) / (2 * R)));
-      ctx.fillStyle = `rgba(243, 232, 255, ${pointAlpha})`;
+      ctx.fillStyle = `rgba(220, 252, 231, ${pointAlpha})`;
       ctx.beginPath();
       ctx.arc(p.x, p.y, 2.4 * p.scale, 0, Math.PI * 2);
       ctx.fill();
@@ -492,8 +492,8 @@ function showToast(message, type = "info") {
     position: fixed;
     bottom: 24px;
     right: 24px;
-    background: ${type === "error" ? "rgba(239, 68, 68, 0.95)" : type === "success" ? "rgba(34, 197, 94, 0.95)" : "rgba(17, 20, 40, 0.95)"};
-    border: 1px solid ${type === "error" ? "#f87171" : type === "success" ? "#4ade80" : "rgba(168, 85, 247, 0.4)"};
+    background: ${type === "error" ? "rgba(239, 68, 68, 0.95)" : type === "success" ? "rgba(16, 185, 129, 0.95)" : "rgba(18, 20, 23, 0.95)"};
+    border: 1px solid ${type === "error" ? "#f87171" : type === "success" ? "#3ecf8e" : "rgba(62, 207, 142, 0.4)"};
     color: white;
     padding: 10px 16px;
     border-radius: 10px;
@@ -749,14 +749,14 @@ function setupEventListeners() {
 
     dropzone.addEventListener("dragover", (e) => {
       e.preventDefault();
-      dropzone.style.borderColor = "var(--accent-purple)";
+      dropzone.style.borderColor = "var(--accent-green)";
     });
     dropzone.addEventListener("dragleave", () => {
-      dropzone.style.borderColor = "rgba(168, 85, 247, 0.35)";
+      dropzone.style.borderColor = "rgba(62, 207, 142, 0.35)";
     });
     dropzone.addEventListener("drop", (e) => {
       e.preventDefault();
-      dropzone.style.borderColor = "rgba(168, 85, 247, 0.35)";
+      dropzone.style.borderColor = "rgba(62, 207, 142, 0.35)";
       if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
         handleFilesUpload(e.dataTransfer.files);
       }
